@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+*.egg-info/
+.eggs/
+venv/
+.venv/
+env/
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Developer
+.idea/
+.junie/
+
+# Project
+*.ttf
+*.pdf
