@@ -2,6 +2,7 @@ from reportlab.pdfgen.canvas import *
 from reportlab.pdfbase.pdfmetrics import *
 
 from simpdf._common import _apply_constraints
+from simpdf.rgb import RGB, ColorType
 
 __all__ = ["TextStyle"]
 
@@ -27,6 +28,9 @@ class TextStyle:
     """Default horizontal scaling percentage."""
     default_horizontal_scale: float = 100.0
 
+    """Default text color."""
+    default_color: RGB = RGB(0.0)
+
     """Current font family."""
     font: str
 
@@ -45,6 +49,9 @@ class TextStyle:
     """Current horizontal scaling percentage."""
     horizontal_scale: float
 
+    """Current text color."""
+    color: RGB
+
     def __init__(
             self,
             font: str | None = None,
@@ -59,9 +66,11 @@ class TextStyle:
             word_space_factor: float | None = None,
             horizontal_scale: float | None = None,
             char_space: float | None = None,
-            word_space: float | None = None):
+            word_space: float | None = None,
+            color: ColorType | None = None):
         """Initializes a LineStyle, automatically resolving typographic constraints."""
         self.font = font if font is not None else self.default_font
+        self.color = RGB(color) if color is not None else self.default_color
         font_ascent_10 = getAscent(self.font, 10.0)
         font_descent_10 = getDescent(self.font, 10.0)
 
@@ -176,6 +185,7 @@ class TextStyle:
     def draw_text(self, canvas: Canvas, x: float, y: float, text: str):
         """Draws the text onto the given canvas at the specified coordinates using this style."""
         canvas.saveState()
+        canvas.setFillColor(self.color)
         text_object = canvas.beginText(x, y, "LTR")
         text_object.setFont(self.font, self.font_size, self.line_height)
         text_object.setHorizScale(self.horizontal_scale)

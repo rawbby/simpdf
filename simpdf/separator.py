@@ -1,6 +1,7 @@
 from reportlab.pdfgen.canvas import *
 
 from simpdf.line import Line
+from simpdf.rgb import RGB, ColorType
 
 __all__ = ["Separator"]
 
@@ -14,17 +15,22 @@ class Separator(Line):
     """Thickness of the separator line."""
     thickness: float
 
-    def __init__(self, line_spacing: float = 10.0, thickness: float = 1.0):
-        """Initializes a Separator with a specific spacing and thickness."""
+    """Color of the separator."""
+    color: RGB
+
+    def __init__(self, line_spacing: float = 10.0, thickness: float = 1.0, color: ColorType = 0.0):
+        """Initializes a Separator with specific spacing and thickness."""
         assert line_spacing >= 0.0
         assert thickness >= 0.0
         self.line_spacing = line_spacing
         self.thickness = thickness
+        self.color = RGB(color)
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         """Draws the separator line on the given canvas."""
         canvas.saveState()
         canvas.setLineWidth(self.thickness)
+        canvas.setStrokeColor(self.color)
         canvas.line(start, baseline, end, baseline)
         canvas.restoreState()
 
