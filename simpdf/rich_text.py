@@ -97,6 +97,22 @@ class _RichContent:
     def is_empty(self) -> bool:
         return not self.segments
 
+    def slice(self, a: int, b: int) -> "_RichContent":
+        """Return a new object containing only the characters from *a* to *b*."""
+        result = _RichContent.__new__(type[_RichContent])
+        result.text = self.text[a:b]
+        result.segments = []
+        result.links = []
+        for beg, end, mode in self.segments:
+            sa, sb = max(beg, a), min(end, b)
+            if sa < sb:
+                result.segments.append((sa - a, sb - a, mode))
+        for ls, le, url in self.links:
+            la, lb = max(ls, a), min(le, b)
+            if la < lb:
+                result.links.append((la - a, lb - a, url))
+        return result
+
 
 class RichTextStyle:
     """TextStyle that carries all four bold/italic font variants."""

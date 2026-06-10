@@ -3,17 +3,7 @@ import tempfile
 
 from PIL import Image, ImageDraw
 
-from simpdf import (
-    PDF,
-    Text, TextStyle,
-    Separator,
-    InlineImage,
-    RichText, RichTextStyle,
-    break_text, break_block_text,
-    RGB,
-    PageFlush,
-    unsafe_remove_reportlab_signature,
-)
+from simpdf import *
 
 
 def _make_sample_image(path: Path) -> None:
@@ -34,12 +24,10 @@ def main() -> None:
     pdf = PDF(Path("example.pdf"))
     w = pdf.line_width
 
-    # ── Title ────────────────────────────────────────────────────────────────
     title_style = TextStyle(font="Helvetica-Bold", font_size=22.0)
     pdf.add_line(Text(content_center="SimplePDF Feature Demo", style=title_style))
     pdf.add_line(Separator(thickness=2.0))
 
-    # ── Section: Text & Alignment ────────────────────────────────────────────
     head = TextStyle(font="Helvetica-Bold", font_size=14.0)
     body = TextStyle(font_size=11.0)
     small = TextStyle(font_size=9.0, color=RGB(0.4))
@@ -52,7 +40,6 @@ def main() -> None:
         style=body))
     pdf.add_line(Text(content_left="Small gray caption", style=small))
 
-    # ── Section: Colors ──────────────────────────────────────────────────────
     pdf.add_line(Separator())
     pdf.add_line(Text("2  Colors (RGB)", style=head))
     pdf.add_line(Text("Named hex color  #C00000", style=TextStyle(color=RGB("#C00000"))))
@@ -61,16 +48,8 @@ def main() -> None:
     pdf.add_line(Text("Grayscale float 0.5", style=TextStyle(color=RGB(0.5))))
     pdf.add_line(Text("Grayscale int 128", style=TextStyle(color=RGB(128))))
 
-    # ── Section: Links ───────────────────────────────────────────────────────
     pdf.add_line(Separator())
-    pdf.add_line(Text("3  Hyperlinks", style=head))
-    link_line = Text("Visit example.com for more information.", style=body)
-    link_line.add_link("example.com", "https://example.com")
-    pdf.add_line(link_line)
-
-    # ── Section: Separators ──────────────────────────────────────────────────
-    pdf.add_line(Separator())
-    pdf.add_line(Text("4  Separator Variants", style=head))
+    pdf.add_line(Text("3  Separator Variants", style=head))
     pdf.add_line(Separator())
     pdf.add_line(Separator(length_center=0.5))
     pdf.add_line(Separator(length_left=0.4, length_center=0.0, length_right=0.4))
@@ -78,9 +57,8 @@ def main() -> None:
     pdf.add_line(Separator(length_left=0.0, length_center=0.0, length_right=0.45))
     pdf.add_line(Separator(thickness=3.0, color=RGB("#0044AA"), line_spacing=8.0))
 
-    # ── Section: break_text ──────────────────────────────────────────────────
     pdf.add_line(Separator())
-    pdf.add_line(Text("5  break_text  (word-wrap)", style=head))
+    pdf.add_line(Text("4  break_text  (word-wrap)", style=head))
     long = (
         "SimplePDF lays out content as a vertical sequence of Line objects. "
         "Each line reports its own ascent, descent, and spacing so the engine "
@@ -91,15 +69,13 @@ def main() -> None:
     for line in break_text(long, w, body):
         pdf.add_line(line)
 
-    # ── Section: break_block_text ────────────────────────────────────────────
     pdf.add_line(Separator())
-    pdf.add_line(Text("6  break_block_text  (full justification)", style=head))
+    pdf.add_line(Text("5  break_block_text  (full justification)", style=head))
     for line in break_block_text(long, w, body):
         pdf.add_line(line)
 
-    # ── Section: RichText ────────────────────────────────────────────────────
     pdf.add_line(Separator())
-    pdf.add_line(Text("7  RichText  (bold / italic / links)", style=head))
+    pdf.add_line(Text("6  RichText  (bold / italic / links)", style=head))
     rich = RichTextStyle(
         font="Helvetica",
         font_italic="Helvetica-Oblique",
@@ -119,9 +95,8 @@ def main() -> None:
         content_right="right  <b><i>bi</i></b>",
         style=rich))
 
-    # ── Section: InlineImage ─────────────────────────────────────────────────
     pdf.add_line(Separator())
-    pdf.add_line(Text("8  InlineImage", style=head))
+    pdf.add_line(Text("7  InlineImage", style=head))
     pdf.add_line(InlineImage(
         image_height=50.0,
         image_path_left=img_path,
@@ -138,7 +113,6 @@ def main() -> None:
         image_path_center=None,
         image_path_right=img_path))
 
-    # ── PageFlush → page 2 ───────────────────────────────────────────────────
     pdf.add_line(PageFlush())
 
     pdf.add_line(Text(content_center="Page 2  —  PageFlush demo", style=title_style))
@@ -153,7 +127,6 @@ def main() -> None:
 
     pdf.save()
     img_path.unlink()
-    print("Saved example.pdf")
 
 
 if __name__ == "__main__":

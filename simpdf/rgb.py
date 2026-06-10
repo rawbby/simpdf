@@ -14,18 +14,19 @@ class RGB(Color):
 
     def __init__(self, value: ColorType):
         """Initializes a Color from a variety of formats."""
-        r = 0.0
-        g = 0.0
-        b = 0.0
-        if isinstance(value, int) or isinstance(value, float):
+        if isinstance(value, Color):
+            r, g, b = value.red, value.green, value.blue
+        elif isinstance(value, (int, float)):
             r = g = b = self._norm(value)
         elif isinstance(value, tuple):
+            if len(value) != 3:
+                raise TypeError(f"Color tuple must have 3 elements, got {len(value)}")
             r = self._norm(value[0])
             g = self._norm(value[1])
             b = self._norm(value[2])
         elif isinstance(value, str):
             if value[0] != "#" or len(value) not in [4, 7]:
-                raise ValueError(f"Invalid color string: {value}")
+                raise TypeError(f"Invalid color string: {value}")
             if len(value) == 4:
                 r = self._norm(int(value[1], 16) / 15)
                 g = self._norm(int(value[2], 16) / 15)
@@ -34,16 +35,13 @@ class RGB(Color):
                 r = self._norm(int(value[1:3], 16) / 255)
                 g = self._norm(int(value[3:5], 16) / 255)
                 b = self._norm(int(value[5:7], 16) / 255)
+        else:
+            raise TypeError(f"Invalid color type: {type(value)}")
+
         Color.__init__(self, r, g, b)
 
     @staticmethod
     def _norm(v: int | float) -> float:
-        if isinstance(v, float) and (v < 0.0 or v > 1.0):
-            raise ValueError(f"Float color value must be between 0 and 1, got {v}")
-
         if isinstance(v, int):
-            if v < 0 or v > 255:
-                raise ValueError(f"Integer color value must be between 0 and 255, got {v}")
             v = float(v) / 255.0
-
-        return v
+        return max(0.0, min(1.0, v))
