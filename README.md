@@ -13,7 +13,7 @@ A simple, pixel-perfect PDF layout library built on top of ReportLab, providing 
 ## Installation
 
 ```bash
-pip install git+https://github.com/rawbby/simpdf.git@v0.1.0
+pip install git+https://github.com/rawbby/simpdf.git@v0.1.3
 ```
 
 ## Example
@@ -30,8 +30,7 @@ line = Text(content_left="Hello", content_right="World!", style=style)
 pdf.add_line(line)
 
 # Create an image
-img = InlineImage(image_path_center=Path("logo.png"), image_height=50.0,
-                  image_path_left=None, image_path_right=None)
+img = InlineImage(image_path_center=Path("logo.png"), image_height=50.0)
 pdf.add_line(img)
 
 # Create a separator

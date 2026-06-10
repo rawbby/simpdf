@@ -152,34 +152,39 @@ class PDF:
             return
 
         pages = []
-        current_page_lines = [self.lines[0]]
-        current_height = self.lines[0].line_height - self.lines[0].space_bottom
+        page = [self.lines[0]]
+        page_height = self.lines[0].line_height - self.lines[0].space_top
 
         for line in self.lines[1:]:
-            added_height = current_page_lines[-1].space_bottom + line.line_height - line.space_bottom
-            if current_height + added_height > self.content_height:
-                pages.append(current_page_lines)
-                assert max_pages < 0 or len(pages) <= max_pages
-                current_page_lines = [line]
-                current_height = line.line_height - line.space_top - line.space_bottom
-            else:
-                current_page_lines.append(line)
-                current_height += added_height
+            page_height += line.line_height - line.space_bottom
 
-        if current_page_lines:
-            pages.append(current_page_lines)
+            # trivial case: line fits page
+            if page_height <= self.content_height:
+                page_height += line.space_bottom
+                page.append(line)
+                continue
 
-        for page_idx, page_lines in enumerate(pages):
-            if page_idx > 0:
+            # start new page
+            pages.append(page)
+            assert max_pages < 0 or len(pages) <= max_pages
+
+            page = [line]
+            page_height = line.line_height - line.space_top
+
+        if page:
+            pages.append(page)
+
+        for i, page in enumerate(pages):
+            if i > 0:
                 self.canvas.showPage()
 
-            baseline = self.page_height - self.margin_top - page_lines[0].ascent
-            start = self.content_x
-            end = start + self.content_width
+            baseline = self.page_height - self.margin_top - page[0].ascent
+            beg = self.content_x
+            end = beg + self.content_width
 
-            page_lines[0].draw(self.canvas, baseline, start, end)
-            for i, line in enumerate(page_lines[1:], 1):
-                baseline -= page_lines[i - 1].line_height_lower + line.line_height_upper
-                line.draw(self.canvas, baseline, start, end)
+            page[0].draw(self.canvas, baseline, beg, end)
+            for j, line in enumerate(page[1:], 1):
+                baseline -= page[j - 1].line_height_lower + line.line_height_upper
+                line.draw(self.canvas, baseline, beg, end)
 
         self.canvas.save()

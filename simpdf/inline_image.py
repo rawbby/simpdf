@@ -36,10 +36,11 @@ class InlineImage(Line):
     dpi: float | None
 
     def __init__(
-            self, image_height: float,
-            image_path_left: Path | None,
-            image_path_center: Path | None,
-            image_path_right: Path | None,
+            self,
+            image_height: float,
+            image_path_left: Path | None = None,
+            image_path_center: Path | None = None,
+            image_path_right: Path | None = None,
             line_spacing: float | None = None,
             dpi: float | None = None):
         self.image_path_left = image_path_left

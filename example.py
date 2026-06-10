@@ -1,5 +1,5 @@
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from PIL import Image, ImageDraw
 
@@ -21,24 +21,31 @@ def main() -> None:
         img_path = Path(f.name)
     _make_sample_image(img_path)
 
+    font = "Helvetica"
+    font_italic = "Helvetica-Oblique"
+    font_bold = "Helvetica-Bold"
+    font_bold_italic = "Helvetica-BoldOblique"
+    fonts = {
+        "font": font,
+        "font_italic": font_italic,
+        "font_bold": font_bold,
+        "font_bold_italic": font_bold_italic
+    }
+
     pdf = PDF(Path("example.pdf"))
     w = pdf.line_width
 
-    title_style = TextStyle(font="Helvetica-Bold", font_size=22.0)
+    title_style = TextStyle(font_bold, font_size=22.0)
     pdf.add_line(Text(content_center="SimplePDF Feature Demo", style=title_style))
     pdf.add_line(Separator(thickness=2.0))
 
-    head = TextStyle(font="Helvetica-Bold", font_size=14.0)
+    head = TextStyle(font_bold, font_size=14.0)
     body = TextStyle(font_size=11.0)
     small = TextStyle(font_size=9.0, color=RGB(0.4))
 
     pdf.add_line(Text("1  Text & Alignment", style=head))
-    pdf.add_line(Text(
-        content_left="Left-aligned",
-        content_center="Centered",
-        content_right="Right-aligned",
-        style=body))
-    pdf.add_line(Text(content_left="Small gray caption", style=small))
+    pdf.add_line(Text("Left-aligned", "Centered", "Right-aligned", style=body))
+    pdf.add_line(Text("Small gray caption", style=small))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("2  Colors (RGB)", style=head))
@@ -51,11 +58,11 @@ def main() -> None:
     pdf.add_line(Separator())
     pdf.add_line(Text("3  Separator Variants", style=head))
     pdf.add_line(Separator())
-    pdf.add_line(Separator(length_center=0.5))
-    pdf.add_line(Separator(length_left=0.4, length_center=0.0, length_right=0.4))
-    pdf.add_line(Separator(length_left=0.45, length_center=0.0, length_right=0.0))
-    pdf.add_line(Separator(length_left=0.0, length_center=0.0, length_right=0.45))
-    pdf.add_line(Separator(thickness=3.0, color=RGB("#0044AA"), line_spacing=8.0))
+    pdf.add_line(Separator(length_center=1.0 / 3.0))
+    pdf.add_line(Separator(length_left=1.0 / 3.0))
+    pdf.add_line(Separator(length_right=1.0 / 3.0))
+    pdf.add_line(Separator(length_left=1.0 / 3.0, length_right=1.0 / 3.0))
+    pdf.add_line(Separator(thickness=2.0, color=RGB("#0044AA"), line_spacing=8.0))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("4  break_text  (word-wrap)", style=head))
@@ -64,8 +71,7 @@ def main() -> None:
         "Each line reports its own ascent, descent, and spacing so the engine "
         "can pack them onto pages automatically without any manual positioning. "
         "The break_text helper splits a long string into individual Text lines "
-        "that each fit within the available column width."
-    )
+        "that each fit within the available column width.")
     for line in break_text(long, w, body):
         pdf.add_line(line)
 
@@ -76,24 +82,15 @@ def main() -> None:
 
     pdf.add_line(Separator())
     pdf.add_line(Text("6  RichText  (bold / italic / links)", style=head))
-    rich = RichTextStyle(
-        font="Helvetica",
-        font_italic="Helvetica-Oblique",
-        font_bold="Helvetica-Bold",
-        font_bold_italic="Helvetica-BoldOblique",
-        font_size=11.0)
-    pdf.add_line(RichText(
-        content_left="Normal, <b>bold</b>, <i>italic</i>, and <b><i>bold-italic</i></b>.",
-        style=rich))
+    rich = RichTextStyle(**fonts, font_size=11.0)
+    pdf.add_line(RichText("normal <b>bold</b> <i>italic</i> <b><i>bold-italic</i></b>", style=rich))
+    pdf.add_line(VerticalSpace(20.0))
     pdf.add_line(RichText(
         content_left='<a href="https://example.com">Linked rich text</a>  —  '
                      '<b><a href="https://example.com">bold link</a></b>.',
         style=rich))
-    pdf.add_line(RichText(
-        content_left="Left  <b>bold</b>",
-        content_center="<i>center italic</i>",
-        content_right="right  <b><i>bi</i></b>",
-        style=rich))
+    pdf.add_line(VerticalSpace(20.0))
+    pdf.add_line(RichText("left <b>bold</b>", "center <i>italic</i>", "right <b><i>bold-italic</i></b>", style=rich))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("7  break_rich_text  (word-wrap with markup)", style=head))
@@ -114,23 +111,12 @@ def main() -> None:
     for line in break_rich_block_text(rich_long, w, rich):
         pdf.add_line(line)
 
-    pdf.add_line(Separator())
-    pdf.add_line(Text("9  InlineImage", style=head))
-    pdf.add_line(InlineImage(
-        image_height=50.0,
-        image_path_left=img_path,
-        image_path_center=None,
-        image_path_right=None))
-    pdf.add_line(InlineImage(
-        image_height=50.0,
-        image_path_left=None,
-        image_path_center=img_path,
-        image_path_right=None))
-    pdf.add_line(InlineImage(
-        image_height=50.0,
-        image_path_left=None,
-        image_path_center=None,
-        image_path_right=img_path))
+    pdf.add_line(ContentGroup([
+        Separator(),
+        Text("9  InlineImage", style=head),
+        InlineImage(image_height=50.0, image_path_left=img_path),
+        InlineImage(image_height=50.0, image_path_center=img_path),
+        InlineImage(image_height=50.0, image_path_right=img_path)]))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("10  ContentGroup  (keep-together)", style=head))
