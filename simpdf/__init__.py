@@ -13,3 +13,4 @@ from simpdf.stretch_text import *
 from simpdf.text import *
 from simpdf.text_style import *
 from simpdf.unsafe import *
+from simpdf.vertical_space import *
