@@ -45,7 +45,7 @@ class Separator(Line):
         assert self.line_spacing >= 0.0
         assert self.thickness >= 0.0
 
-        if None in [self.length_left, self.length_center, self.length_right]:
+        if all(it is None for it in [self.length_left, self.length_center, self.length_right]):
             self.length_center = 1.0
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):

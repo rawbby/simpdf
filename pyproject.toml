@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simpdf"
-version = "0.1.0"
+version = "0.1.3"
 description = "A simple, pixel-perfect PDF layout logic package"
 readme = "README.md"
 keywords = ["pdf", "python", "reportlab", "layout", "document", "generation", "pixel-perfect", "pdf-generation", "typesetting", "publishing"]

@@ -32,7 +32,7 @@ class VerticalSpace(Line):
 
     @property
     def line_height_upper(self) -> float:
-        return 0.0
+        return self._space
 
     @property
     def line_height_lower(self) -> float:
