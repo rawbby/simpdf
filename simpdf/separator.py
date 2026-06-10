@@ -118,7 +118,3 @@ class Separator(Line):
     def line_height(self) -> float:
         """Gets the total line height of the separator."""
         return self.thickness + self.line_spacing
-
-    def __repr__(self):
-        """Returns a string representation of the separator."""
-        return "<separator>"

@@ -18,105 +18,80 @@ class _RichContent:
     So 0 = normal, 1 = italic, 2 = bold, 3 = bold + italic.
     """
 
-    """the raw string content including all tags"""
-    # e.g. 'Hello <b>User</b>, please <i>look</i> <a href="http://example.com">here</a>!'
-    rich_text: str
-
-    """the parsed segments as structured data as (start, end, mode)"""
-    # e.g. [...] todo
+    """the parsed segments as (start, end, mode) char positions into `text`"""
     segments: list[tuple[int, int, int]]
 
-    """maps each raw-string index to the content position with tags removed"""
-    # e.g. [0, 1, 2, 3, 4, 5, 6, 6, 6, 6, 7, 8, 9, 10, 10, 10, 10, 10, 11, ...]
-    positions: list[int]
-
-    """the links as (start, end, url) referencing character positions of content without tags"""
-    # e.g. [(19, 23, "http://example.com")]
+    """the links as (start, end, url) referencing char positions in `text`"""
     links: list[tuple[int, int, str]]
 
-    """the tag-stripped flat text (concatenated segment text)"""
+    """the tag-stripped flat text"""
     text: str
 
     def __init__(self, rich_text: str | None):
-        self.rich_text = rich_text or ""
         self.segments = []
-        self.positions = []
         self.links = []
         self.text = ""
 
-        if not self.rich_text:
+        if not rich_text:
             return
 
-        buffer: list[str] = []
-        link_start: int | None = None
-        link_url: str | None = None
-
-        code_link: Literal["a"] = "a"
-        code_bold: Literal["b"] = "b"
-        code_italic: Literal["i"] = "i"
+        text_buf: list[str] = []
+        seg_buf: list[str] = []
+        link_start: int = 0
+        link_url: str = ""
         stack: list[Literal["a", "b", "i"]] = []
 
         def flush() -> None:
-            if buffer:
-                mode = (1 if code_italic in stack else 0) | (2 if code_bold in stack else 0)
-                self.segments.append((mode, "".join(buffer)))
-                buffer.clear()
+            if seg_buf:
+                mode = (1 if "i" in stack else 0) | (2 if "b" in stack else 0)
+                beg = len(text_buf)
+                text_buf.extend(seg_buf)
+                self.segments.append((beg, len(text_buf), mode))
+                seg_buf.clear()
 
-        p, i, n = 0, 0, len(self.rich_text)
+        p, i, n = 0, 0, len(rich_text)
         while i < n:
-            if self.rich_text.startswith("<b>", i):
-                assert code_bold not in stack
+            if rich_text.startswith("<b>", i):
+                assert "b" not in stack
                 flush()
-                stack.append(code_bold)
-                self.positions.extend([p] * 3)
+                stack.append("b")
                 i += 3
-            elif self.rich_text.startswith("</b>", i):
-                assert stack and stack[-1] == code_bold
+            elif rich_text.startswith("</b>", i):
+                assert stack and stack[-1] == "b"
                 flush()
                 stack.pop()
-                self.positions.extend([p] * 4)
                 i += 4
-            elif self.rich_text.startswith("<i>", i):
-                assert code_italic not in stack
+            elif rich_text.startswith("<i>", i):
+                assert "i" not in stack
                 flush()
-                stack.append(code_italic)
-                self.positions.extend([p] * 3)
+                stack.append("i")
                 i += 3
-            elif self.rich_text.startswith("</i>", i):
-                assert stack and stack[-1] == code_italic
+            elif rich_text.startswith("</i>", i):
+                assert stack and stack[-1] == "i"
                 flush()
                 stack.pop()
-                self.positions.extend([p] * 4)
                 i += 4
-            elif self.rich_text.startswith('<a href="', i):
-                assert code_link not in stack
+            elif rich_text.startswith('<a href="', i):
+                assert "a" not in stack
                 url_start = i + 9
-                url_end = self.rich_text.index('"', url_start)
-                assert self.rich_text.startswith('">', url_end), \
-                    f"expected '\">' after URL at position {url_end}"
-                tag_end = url_end + 2
-                stack.append(code_link)
-                link_url = self.rich_text[url_start:url_end]
+                url_end = rich_text.index('"', url_start)
+                assert rich_text[url_end + 1] == '>'
+                stack.append("a")
+                link_url = rich_text[url_start:url_end]
                 link_start = p
-                self.positions.extend([p] * (tag_end - i))
-                i = tag_end
-            elif self.rich_text.startswith("</a>", i):
-                assert stack and stack[-1] == code_link
-                assert link_start is not None and link_url is not None
+                i = url_end + 2
+            elif rich_text.startswith("</a>", i):
+                assert stack and stack[-1] == "a"
                 stack.pop()
                 self.links.append((link_start, p, link_url))
-                link_start = None
-                link_url = None
-                self.positions.extend([p] * 4)
                 i += 4
             else:
-                buffer.append(self.rich_text[i])
-                self.positions.append(p)
+                seg_buf.append(rich_text[i])
                 p += 1
                 i += 1
         flush()
         assert not stack, f"unclosed tags: {stack}"
-        self.text = "".join(t for _, t in self.segments)
+        self.text = "".join(text_buf)
 
     @property
     def is_empty(self) -> bool:
@@ -150,6 +125,7 @@ class RichTextStyle:
             char_space: float | None = None,
             word_space: float | None = None,
             color: ColorType | None = None):
+        """Initializes a RichTextStyle with four font variants sharing the same typographic parameters."""
         kwargs = {
             "font_size": font_size,
             "font_ascent": font_ascent,
@@ -172,15 +148,20 @@ class RichTextStyle:
 
     @property
     def styles(self) -> tuple[TextStyle, TextStyle, TextStyle, TextStyle]:
+        """Returns the four style variants as (normal, italic, bold, bold-italic)."""
         return self.style, self.style_italic, self.style_bold, self.style_bold_italic
 
     def get_style(self, mode: int) -> TextStyle:
+        """Returns the TextStyle corresponding to the given mode bitmask (0=normal, 1=italic, 2=bold, 3=bold-italic)."""
         return self.styles[mode]
 
     def text_width(self, rich_text: str | None | _RichContent) -> float:
+        """Calculates the total rendered width of the given rich text string."""
         if not isinstance(rich_text, _RichContent):
             rich_text = _RichContent(rich_text)
-        return sum(self.get_style(mode).text_width(text) for mode, text in rich_text.segments)
+
+        return sum(self.get_style(mode).text_width(rich_text.text[beg:end])
+                   for beg, end, mode in rich_text.segments)
 
     def draw_text(self, canvas: Canvas, x: float, y: float,
                   rich_text: str | None | _RichContent) -> None:
@@ -188,7 +169,8 @@ class RichTextStyle:
         if not isinstance(rich_text, _RichContent):
             rich_text = _RichContent(rich_text)
 
-        for mode, text in rich_text.segments:
+        for beg, end, mode in rich_text.segments:
+            text = rich_text.text[beg:end]
             style = self.get_style(mode)
             style.draw_text(canvas, x, y, text)
             x += style.text_width(text)
@@ -235,8 +217,6 @@ class RichText(Line):
             y1 = baseline + self.ascent + margin
             canvas.linkURL(link_url, (x0, y0, x1, y1))
 
-            print(f">>> linking {rich_text.text[link_start:link_end]} to {link_url}")
-
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         """Draws the text line on the canvas within the given horizontal boundaries."""
         max_text_width = end - start
@@ -270,7 +250,12 @@ class RichText(Line):
             assert text_width_left + text_width_right <= max_text_width
 
     def _unique_styles(self) -> list[TextStyle]:
-        return list({self.style.get_style(mode) for beg, end, mode in self.content_left.segments})
+        all_segments = (self.content_left.segments
+                        + self.content_center.segments
+                        + self.content_right.segments)
+        if not all_segments:
+            return [self.style.style]
+        return list({self.style.get_style(mode) for _, _, mode in all_segments})
 
     @property
     def _line_spacing(self) -> float:
@@ -294,7 +279,7 @@ class RichText(Line):
     @property
     def descent(self) -> float:
         """Gets the descent of the line."""
-        return min(style.font_ascent for style in self._unique_styles())
+        return min(style.font_descent for style in self._unique_styles())
 
     @property
     def line_height_upper(self) -> float:
@@ -310,6 +295,3 @@ class RichText(Line):
     def line_height(self) -> float:
         """Gets the total line height."""
         return self.line_height_lower + self.line_height_upper
-
-    def __repr__(self):
-        return ""

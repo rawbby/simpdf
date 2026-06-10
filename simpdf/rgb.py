@@ -47,6 +47,3 @@ class RGB(Color):
             v = float(v) / 255.0
 
         return v
-
-    def __repr__(self) -> str:
-        return f"Color(r={self.red}, g={self.green}, b={self.blue})"

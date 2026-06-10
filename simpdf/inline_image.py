@@ -136,7 +136,3 @@ class InlineImage(Line):
     def line_height(self) -> float:
         """Gets the total line height of the image."""
         return self.image_height + self.line_spacing
-
-    def __repr__(self):
-        """Returns a string representation of the image."""
-        return f"<image>"

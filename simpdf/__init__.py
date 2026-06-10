@@ -9,3 +9,5 @@ from simpdf.inline_image import *
 from simpdf.break_text import *
 from simpdf.rgb import *
 from simpdf.rich_text import *
+from simpdf.page_flush import *
+from simpdf.stretch_text import *

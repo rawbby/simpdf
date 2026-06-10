@@ -180,10 +180,8 @@ class PDF:
             start = self.content_x
             end = start + self.content_width
 
-            print(f"Drawing page {page_idx + 1}, line 1: {page_lines[0]}")
             page_lines[0].draw(self.canvas, baseline, start, end)
             for i, line in enumerate(page_lines[1:], 1):
-                print(f"Drawing page {page_idx + 1}, line {i + 1}: {line}")
                 baseline -= page_lines[i - 1].line_height_lower + line.line_height_upper
                 line.draw(self.canvas, baseline, start, end)
 

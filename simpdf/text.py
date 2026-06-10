@@ -68,7 +68,6 @@ class Text(Line):
                 y0 = baseline + self.descent - margin
                 y1 = baseline + self.ascent + margin
                 canvas.linkURL(url, (x0, y0, x1, y1))
-                print(f">>> linking {label} to {url}")
                 index += len(label)
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
@@ -137,14 +136,3 @@ class Text(Line):
     def line_height(self) -> float:
         """Gets the total line height."""
         return self.style.line_height
-
-    def __repr__(self):
-        """Returns a string representation of the text line."""
-        parts = []
-        if self.content_left:
-            parts.append(self.content_left)
-        if self.content_center:
-            parts.append(self.content_center)
-        if self.content_right:
-            parts.append(self.content_right)
-        return " ".join(parts)

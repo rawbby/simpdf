@@ -2,6 +2,7 @@ from reportlab.pdfbase.pdfdoc import *
 
 __all__ = ["unsafe_remove_reportlab_signature"]
 
+
 def unsafe_remove_reportlab_signature():
     """
     Removes the default ReportLab signature from generated PDF files.
