@@ -104,22 +104,22 @@ class InlineImage(Line):
 
     @property
     def space_top(self) -> float:
-        """Gets the top spacing for the separator."""
+        """Gets the top spacing for the image."""
         return 0.5 * self.line_spacing
 
     @property
     def space_bottom(self) -> float:
-        """Gets the bottom spacing for the separator."""
+        """Gets the bottom spacing for the image."""
         return 0.5 * self.line_spacing
 
     @property
     def ascent(self) -> float:
-        """Gets the upward extent of the separator."""
+        """Gets the upward extent of the image."""
         return self.image_height
 
     @property
     def descent(self) -> float:
-        """Gets the downward extent of the separator."""
+        """Gets the downward extent of the image."""
         return 0.0
 
     @property
@@ -134,7 +134,7 @@ class InlineImage(Line):
 
     @property
     def line_height(self) -> float:
-        """Gets the total line height of the separator."""
+        """Gets the total line height of the image."""
         return self.image_height + self.line_spacing
 
     def __repr__(self):
