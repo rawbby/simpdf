@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from reportlab.pdfgen.canvas import *
 from PIL import Image
+from reportlab.pdfgen.canvas import *
 
 from simpdf.line import Line
 
@@ -9,7 +9,6 @@ __all__ = ["InlineImage"]
 
 
 def _scale_image(img: Image.Image, min_height: float) -> Image.Image:
-    """Scales the given image to the min height using division steps."""
     k = 1
     while img.size[1] // (k + 1) >= min_height:
         k += 1
@@ -51,8 +50,6 @@ class InlineImage(Line):
         self.dpi = dpi
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        """Draws the image on the given canvas."""
-
         kwargs = {"y": baseline, "height": self.image_height, "preserveAspectRatio": True, "anchorAtXY": True}
         line_width = end - start
 
@@ -104,35 +101,28 @@ class InlineImage(Line):
 
     @property
     def space_top(self) -> float:
-        """Gets the top spacing for the image."""
         return 0.5 * self.line_spacing
 
     @property
     def space_bottom(self) -> float:
-        """Gets the bottom spacing for the image."""
         return 0.5 * self.line_spacing
 
     @property
     def ascent(self) -> float:
-        """Gets the upward extent of the image."""
         return self.image_height
 
     @property
     def descent(self) -> float:
-        """Gets the downward extent of the image."""
         return 0.0
 
     @property
     def line_height_upper(self) -> float:
-        """Gets the upper line height including spacing."""
         return self.space_top + self.image_height
 
     @property
     def line_height_lower(self) -> float:
-        """Gets the lower line height including spacing."""
         return 0.5 * self.line_spacing
 
     @property
     def line_height(self) -> float:
-        """Gets the total line height of the image."""
         return self.image_height + self.line_spacing

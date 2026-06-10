@@ -9,7 +9,7 @@ class Line(ABC):
     """Interface defining the methods expected by SimplePDF for layout elements."""
 
     @abstractmethod
-    def draw(self, canvas: Canvas, baseline: float, start: float, end: float) -> None:
+    def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         """Draws the element on the canvas."""
         pass
 

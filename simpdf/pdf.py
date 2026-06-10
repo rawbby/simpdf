@@ -68,8 +68,6 @@ class PDF:
             content_y: float | None = None,
             content_width: float | None = None,
             content_height: float | None = None):
-        """Initializes the PDF document with layout constraints and sets up the canvas."""
-
         sym_params = [
             ("page_width", page_width),
             ("page_height", page_height),
@@ -161,8 +159,7 @@ class PDF:
             added_height = current_page_lines[-1].space_bottom + line.line_height - line.space_bottom
             if current_height + added_height > self.content_height:
                 pages.append(current_page_lines)
-                assert max_pages < 0 or len(pages) <= max_pages, \
-                    f"Expected at most {max_pages} pages, but got {len(pages)}"
+                assert max_pages < 0 or len(pages) <= max_pages
                 current_page_lines = [line]
                 current_height = line.line_height - line.space_top - line.space_bottom
             else:
