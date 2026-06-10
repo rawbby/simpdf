@@ -13,7 +13,7 @@ A simple, pixel-perfect PDF layout library built on top of ReportLab, providing 
 ## Installation
 
 ```bash
-pip install git+https://github.com/rawbby/simpdf.git@v0.1.3
+pip install git+https://github.com/rawbby/simpdf.git@v0.1.4
 ```
 
 ## Example
