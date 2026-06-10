@@ -47,7 +47,8 @@ def test_vertical_space_between_lines(tmp_path, style):
 
 
 def test_vertical_space_ignored_as_first_line(tmp_path, style):
-    """VerticalSpace at the top of a page is dropped entirely from page layout (property 1)."""
+    """VerticalSpace as page[0]: its space_top is ignored (property 1), but the next line
+    is page[1] so its own space_top is included normally — the only shift is that one space_top."""
     extra = 50.0
 
     # VerticalSpace first, then Line1 and Line2
@@ -66,10 +67,19 @@ def test_vertical_space_ignored_as_first_line(tmp_path, style):
     vs_first = PDFReverseTool(str(tmp_path / "vs_first.pdf"))
     ref = PDFReverseTool(str(tmp_path / "ref.pdf"))
 
-    # Both lines must land at exactly the same positions — leading VerticalSpace is a no-op.
-    assert abs(_line1_y0(vs_first) - _line1_y0(ref)) < 0.5, (
-        f"Line1 y shifted by {_line1_y0(vs_first) - _line1_y0(ref):.2f} with leading VerticalSpace"
+    text_space_top = style.line_spacing / 2
+
+    # Line1 is shifted down by exactly its own space_top (it is the second line in page[],
+    # so space_top is included). The VerticalSpace's own 50 pt are NOT added — that is the
+    # "ignored" part.
+    shift1 = _line1_y0(vs_first) - _line1_y0(ref)
+    assert abs(shift1 - text_space_top) < 0.5, (
+        f"Expected Line1 to shift by space_top={text_space_top:.2f}, got {shift1:.2f}"
     )
-    assert abs(_line2_y0(vs_first) - _line2_y0(ref)) < 0.5, (
-        f"Line2 y shifted by {_line2_y0(vs_first) - _line2_y0(ref):.2f} with leading VerticalSpace"
+
+    # The gap between Line1 and Line2 must be the same in both PDFs.
+    gap_ref = _line2_y0(ref) - _line1_y0(ref)
+    gap_vs = _line2_y0(vs_first) - _line1_y0(vs_first)
+    assert abs(gap_vs - gap_ref) < 0.5, (
+        f"Gap between lines changed by {gap_vs - gap_ref:.2f} with leading VerticalSpace"
     )
