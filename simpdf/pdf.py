@@ -166,13 +166,14 @@ class PDF:
 
             # start new page
             pages.append(page)
-            assert max_pages < 0 or len(pages) <= max_pages
 
             page = [line]
             page_height = line.line_height - line.space_top
 
         if page:
             pages.append(page)
+
+        assert max_pages < 0 or len(pages) <= max_pages
 
         for i, page in enumerate(pages):
             if i > 0:
