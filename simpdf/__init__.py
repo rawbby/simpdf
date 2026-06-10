@@ -1,5 +1,6 @@
 from simpdf.break_rich_text import *
 from simpdf.break_text import *
+from simpdf.content_group import *
 from simpdf.inline_image import *
 from simpdf.line import *
 from simpdf.page_flush import *
