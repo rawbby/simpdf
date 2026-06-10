@@ -132,6 +132,17 @@ def main() -> None:
         image_path_center=None,
         image_path_right=img_path))
 
+    pdf.add_line(Separator())
+    pdf.add_line(Text("10  ContentGroup  (keep-together)", style=head))
+    pdf.add_line(ContentGroup([
+        Text("This Text + 3 wrapped lines + Separator are kept on the same page:", style=body),
+        *break_text(
+            "ContentGroup wraps several lines and reports a single line_height to the "
+            "layout engine, so either every wrapped line fits on the current page or "
+            "they all flow to the next one together.",
+            w, body),
+    ]))
+
     pdf.add_line(PageFlush())
 
     pdf.add_line(Text(content_center="Page 2  —  PageFlush demo", style=title_style))
