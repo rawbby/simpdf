@@ -21,9 +21,6 @@ class Text(Line):
     """Text content aligned to the right."""
     content_right: str | None
 
-    """Dictionary mapping text labels to URL links."""
-    links: dict[str, str]
-
     """Style applied to the text line."""
     style: TextStyle
 
@@ -32,13 +29,11 @@ class Text(Line):
             content_left: str | None = None,
             content_center: str | None = None,
             content_right: str | None = None,
-            style: TextStyle | None = None,
-            links: dict[str, str] | None = None):
+            style: TextStyle | None = None):
         """Initializes a TextLine with optional content for different alignments and a style."""
         self.content_left = content_left
         self.content_center = content_center
         self.content_right = content_right
-        self.links = links or dict()
         self.style = style or self.default_style
 
     @property
@@ -49,26 +44,8 @@ class Text(Line):
         text_width_sum += self.style.text_width(self.content_right)
         return text_width_sum
 
-    def add_link(self, label: str, url: str):
-        """Adds a hyperlink to a specific text label in the line."""
-        self.links[label] = url
-
     def _draw(self, canvas: Canvas, baseline: float, start: float, text: str):
         self.style.draw_text(canvas, start, baseline, text)
-        # draw links
-        for label, url in self.links.items():
-            index = 0
-            while True:
-                index = text.find(label, index)
-                if index == -1:
-                    break
-                margin = 0.5 * self.style.line_spacing
-                x0 = start + self.style.text_width(text[:index]) - margin
-                x1 = start + self.style.text_width(text[:index + len(label)]) + margin
-                y0 = baseline + self.descent - margin
-                y1 = baseline + self.ascent + margin
-                canvas.linkURL(url, (x0, y0, x1, y1))
-                index += len(label)
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         """Draws the text line on the canvas within the given horizontal boundaries."""

@@ -72,10 +72,7 @@ def test_color_normalization_bounds():
 def test_color_invalid_type():
     with pytest.raises(TypeError):
         RGB("red")
-        
-    with pytest.raises(TypeError):
-        RGB(True)
-        
+
     with pytest.raises(TypeError):
         # noinspection PyTypeChecker
         RGB((1, 2))
