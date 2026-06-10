@@ -3,13 +3,13 @@ from typing import Literal
 from reportlab.pdfgen.canvas import Canvas
 
 from simpdf.line import Line
-from simpdf.text_style import TextStyle
 from simpdf.rgb import ColorType
+from simpdf.text_style import TextStyle
 
-__all__ = ["RichTextStyle", "RichText"]
+__all__ = ["RichContent", "RichTextStyle", "RichText"]
 
 
-class _RichContent:
+class RichContent:
     """Parsed rich-text content with mixed bold/italic styling and inline links.
 
     Recognized tags: <b>...</b>, <i>...</i>, <a href="URL">...</a>.
@@ -41,7 +41,7 @@ class _RichContent:
         link_url: str = ""
         stack: list[Literal["a", "b", "i"]] = []
 
-        def flush() -> None:
+        def flush():
             if seg_buf:
                 mode = (1 if "i" in stack else 0) | (2 if "b" in stack else 0)
                 beg = len(text_buf)
@@ -90,27 +90,37 @@ class _RichContent:
                 p += 1
                 i += 1
         flush()
-        assert not stack, f"unclosed tags: {stack}"
+        assert not stack
         self.text = "".join(text_buf)
+
+    def __bool__(self) -> bool:
+        return bool(self.segments)
 
     @property
     def is_empty(self) -> bool:
         return not self.segments
 
-    def slice(self, a: int, b: int) -> "_RichContent":
-        """Return a new object containing only the characters from *a* to *b*."""
-        result = _RichContent.__new__(type[_RichContent])
-        result.text = self.text[a:b]
+    def slice(self, beg: int, end: int) -> "RichContent":
+        """Return a new object containing only the characters from *slice_beg* to *slice_end*."""
+
+        # noinspection PyTypeChecker
+        result = RichContent.__new__(RichContent)
+        result.text = self.text[beg:end]
         result.segments = []
         result.links = []
-        for beg, end, mode in self.segments:
-            sa, sb = max(beg, a), min(end, b)
-            if sa < sb:
-                result.segments.append((sa - a, sb - a, mode))
-        for ls, le, url in self.links:
-            la, lb = max(ls, a), min(le, b)
-            if la < lb:
-                result.links.append((la - a, lb - a, url))
+
+        for seg_beg, seg_end, mode in self.segments:
+            seg_beg = max(seg_beg, beg)
+            seg_end = min(seg_end, end)
+            if seg_beg < seg_end:
+                result.segments.append((seg_beg - beg, seg_end - beg, mode))
+
+        for lnk_beg, lnk_end, url in self.links:
+            lnk_beg = max(lnk_beg, beg)
+            lnk_end = min(lnk_end, end)
+            if lnk_beg < lnk_end:
+                result.links.append((lnk_beg - beg, lnk_end - beg, url))
+
         return result
 
 
@@ -141,7 +151,6 @@ class RichTextStyle:
             char_space: float | None = None,
             word_space: float | None = None,
             color: ColorType | None = None):
-        """Initializes a RichTextStyle with four font variants sharing the same typographic parameters."""
         kwargs = {
             "font_size": font_size,
             "font_ascent": font_ascent,
@@ -171,19 +180,18 @@ class RichTextStyle:
         """Returns the TextStyle corresponding to the given mode bitmask (0=normal, 1=italic, 2=bold, 3=bold-italic)."""
         return self.styles[mode]
 
-    def text_width(self, rich_text: str | None | _RichContent) -> float:
+    def text_width(self, rich_text: str | None | RichContent) -> float:
         """Calculates the total rendered width of the given rich text string."""
-        if not isinstance(rich_text, _RichContent):
-            rich_text = _RichContent(rich_text)
+        if not isinstance(rich_text, RichContent):
+            rich_text = RichContent(rich_text)
 
         return sum(self.get_style(mode).text_width(rich_text.text[beg:end])
                    for beg, end, mode in rich_text.segments)
 
-    def draw_text(self, canvas: Canvas, x: float, y: float,
-                  rich_text: str | None | _RichContent) -> None:
+    def draw_text(self, canvas: Canvas, x: float, y: float, rich_text: str | None | RichContent):
         """Draws rich text onto the canvas, switching fonts per segment."""
-        if not isinstance(rich_text, _RichContent):
-            rich_text = _RichContent(rich_text)
+        if not isinstance(rich_text, RichContent):
+            rich_text = RichContent(rich_text)
 
         for beg, end, mode in rich_text.segments:
             text = rich_text.text[beg:end]
@@ -195,9 +203,9 @@ class RichTextStyle:
 class RichText(Line):
     """Text line that renders mixed bold/italic content using a RichTextStyle."""
 
-    content_left: _RichContent
-    content_center: _RichContent
-    content_right: _RichContent
+    content_left: RichContent
+    content_center: RichContent
+    content_right: RichContent
     style: RichTextStyle
 
     def __init__(
@@ -206,72 +214,73 @@ class RichText(Line):
             content_center: str | None = None,
             content_right: str | None = None,
             style: RichTextStyle | None = None):
-        self.content_left = _RichContent(content_left)
-        self.content_center = _RichContent(content_center)
-        self.content_right = _RichContent(content_right)
+        self.content_left = RichContent(content_left)
+        self.content_center = RichContent(content_center)
+        self.content_right = RichContent(content_right)
         self.style = style or RichTextStyle()
 
-    def _char_pos(self, index: int, rich_text: _RichContent, segment_skip: int = 0) -> tuple[float, int, float]:
-        pre_segments_width: float = 0.0
-        for i, (beg, end, mode) in enumerate(rich_text.segments[segment_skip:], start=segment_skip):
-            if beg <= index < end:
-                return pre_segments_width, i, self.style.get_style(mode).text_width(rich_text.text[beg:index])
-            pre_segments_width += self.style.get_style(mode).text_width(rich_text.text[beg:end])
-        raise ValueError(f"Index {index} is out of range for rich text \"{rich_text.text}\"")
+    def draw(self, canvas: Canvas, baseline: float, beg: float, end: float):
+        def pos(idx: int, rich_text: RichContent, j: int) -> tuple[float, int, float]:
+            width: float = 0.0
 
-    def _draw(self, canvas: Canvas, baseline: float, start: float, rich_text: _RichContent):
-        self.style.draw_text(canvas, start, baseline, rich_text)
+            for j, (seg_beg, seg_end, seg_mode) in enumerate(rich_text.segments[j:], start=j):
+                if seg_beg <= idx < seg_end:
+                    return width, j, self.style.get_style(seg_mode).text_width(rich_text.text[seg_beg:idx])
+                width += self.style.get_style(seg_mode).text_width(rich_text.text[seg_beg:seg_end])
 
-        for link_start, link_end, link_url in rich_text.links:
-            w0, i, w1 = self._char_pos(link_start, rich_text)
-            w2, _, w3 = self._char_pos(link_end, rich_text, i)
+            if idx == len(rich_text.text):
+                return width, idx, 0.0
 
-            margin = 0.5 * self._line_spacing
-            x0 = start + w0 + w1 - margin
-            x1 = start + w0 + w2 + w3 + margin
-            y0 = baseline + self.descent - margin
-            y1 = baseline + self.ascent + margin
-            canvas.linkURL(link_url, (x0, y0, x1, y1))
+            raise ValueError(f"Index {idx} is out of range for rich text \"{rich_text.text}\"")
 
-    def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        """Draws the text line on the canvas within the given horizontal boundaries."""
-        max_text_width = end - start
-        text_width_left = 0.0
-        text_width_center = 0.0
-        text_width_right = 0.0
+        def drw(x: float, rich_text: RichContent):
+            self.style.draw_text(canvas, x, baseline, rich_text)
+
+            for lnk_beg, lnk_end, lnk_url in rich_text.links:
+                w0, i, w1 = pos(lnk_beg, rich_text, 0)
+                w2, _, w3 = pos(lnk_end, rich_text, i)
+
+                margin = 0.5 * self._line_spacing
+                x0 = x + w0 + w1 - margin
+                x1 = x + w0 + w2 + w3 + margin
+                y0 = baseline + self.descent - margin
+                y1 = baseline + self.ascent + margin
+                canvas.linkURL(lnk_url, (x0, y0, x1, y1))
+
+        max_text_width = end - beg
 
         if self.content_left:
             text_width_left = self.style.text_width(self.content_left)
-            assert text_width_left <= max_text_width, f"{text_width_left} > {max_text_width}"
-            self._draw(canvas, baseline, start, self.content_left)
+            assert text_width_left <= max_text_width
+            drw(beg, self.content_left)
 
         if self.content_center:
             text_width_center = self.style.text_width(self.content_center)
-            assert text_width_center <= max_text_width, f"{text_width_center} > {max_text_width}"
-            start_center = start + (end - start) / 2 - text_width_center / 2
-            self._draw(canvas, baseline, start_center, self.content_center)
+            assert text_width_center <= max_text_width
+            start_center = beg + max_text_width / 2 - text_width_center / 2
+            drw(start_center, self.content_center)
 
         if self.content_right:
             text_width_right = self.style.text_width(self.content_right)
-            assert text_width_right <= max_text_width, f"{text_width_right} > {max_text_width}"
-            self._draw(canvas, baseline, end - text_width_right, self.content_right)
+            assert text_width_right <= max_text_width
+            drw(end - text_width_right, self.content_right)
 
         if self.content_left and self.content_center:
+            # noinspection PyUnboundLocalVariable
             assert text_width_left + 0.5 * text_width_center <= 0.5 * max_text_width
 
         if self.content_center and self.content_right:
+            # noinspection PyUnboundLocalVariable
             assert text_width_right + 0.5 * text_width_center <= 0.5 * max_text_width
 
         if self.content_left and self.content_right:
+            # noinspection PyUnboundLocalVariable
             assert text_width_left + text_width_right <= max_text_width
 
     def _unique_styles(self) -> list[TextStyle]:
-        all_segments = (self.content_left.segments
-                        + self.content_center.segments
-                        + self.content_right.segments)
-        if not all_segments:
-            return [self.style.style]
-        return list({self.style.get_style(mode) for _, _, mode in all_segments})
+        all_segments = self.content_left.segments + self.content_center.segments + self.content_right.segments
+        all_styles = {self.style.get_style(mode) for _, _, mode in all_segments}
+        return list(all_styles) if all_styles else [self.style.style]
 
     @property
     def _line_spacing(self) -> float:
@@ -279,35 +288,28 @@ class RichText(Line):
 
     @property
     def space_top(self) -> float:
-        """Gets the top spacing for the line."""
         return 0.5 * self._line_spacing
 
     @property
     def space_bottom(self) -> float:
-        """Gets the bottom spacing for the line."""
         return 0.5 * self._line_spacing
 
     @property
     def ascent(self) -> float:
-        """Gets the ascent of the line."""
         return max(style.font_ascent for style in self._unique_styles())
 
     @property
     def descent(self) -> float:
-        """Gets the descent of the line."""
         return min(style.font_descent for style in self._unique_styles())
 
     @property
     def line_height_upper(self) -> float:
-        """Gets the upper portion of the line height (ascent plus top spacing)."""
         return self.ascent + self.space_top
 
     @property
     def line_height_lower(self) -> float:
-        """Gets the lower portion of the line height (descent plus bottom spacing)."""
         return -self.descent + self.space_bottom
 
     @property
     def line_height(self) -> float:
-        """Gets the total line height."""
         return self.line_height_lower + self.line_height_upper

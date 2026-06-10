@@ -1,8 +1,6 @@
-from reportlab.pdfbase.pdfmetrics import *
-
-from simpdf.text_style import TextStyle
-from simpdf.text import Text
 from simpdf.stretch_text import stretch_text
+from simpdf.text import Text
+from simpdf.text_style import TextStyle
 
 __all__ = ["break_text", "break_block_text"]
 
@@ -15,21 +13,21 @@ def _text_breaker(text: str | None, line_width: float, style: "TextStyle") -> li
 
     words = text.split(" ")
     lines = []
-    curr_line = words[:1]
+    line = words[:1]
 
     for word in words[1:]:
-        test_line = curr_line + [word]
+        test_line = line + [word]
         if style.text_width(" ".join(test_line)) <= line_width:
-            curr_line = test_line
+            line = test_line
         else:
-            lines.append(curr_line)
-            curr_line = [word]
+            lines.append(line)
+            line = [word]
 
     result = []
     for line_words in lines:
         result.append(" ".join(line_words))
-    if curr_line:
-        result.append(" ".join(curr_line))
+    if line:
+        result.append(" ".join(line))
     return result
 
 

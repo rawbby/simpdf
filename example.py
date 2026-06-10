@@ -96,7 +96,26 @@ def main() -> None:
         style=rich))
 
     pdf.add_line(Separator())
-    pdf.add_line(Text("7  InlineImage", style=head))
+    pdf.add_line(Text("7  break_rich_text  (word-wrap with markup)", style=head))
+    rich_long = (
+        "SimplePDF supports <b>bold</b>, <i>italic</i>, and "
+        "<b><i>bold-italic</i></b> text in the same paragraph. "
+        "Long runs of mixed markup are broken at word boundaries just like "
+        "plain text, and <a href=\"https://example.com\">hyperlinks that "
+        "span a line break are <b>split cleanly</b> so the clickable region "
+        "covers only the visible portion on each line.</a> "
+        "The <i>segment metadata</i> travels with each piece after the split."
+    )
+    for line in break_rich_text(rich_long, w, rich):
+        pdf.add_line(line)
+
+    pdf.add_line(Separator())
+    pdf.add_line(Text("8  break_block_rich_text  (justified with markup)", style=head))
+    for line in break_rich_block_text(rich_long, w, rich):
+        pdf.add_line(line)
+
+    pdf.add_line(Separator())
+    pdf.add_line(Text("9  InlineImage", style=head))
     pdf.add_line(InlineImage(
         image_height=50.0,
         image_path_left=img_path,

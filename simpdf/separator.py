@@ -35,8 +35,6 @@ class Separator(Line):
             length_left: float | None = None,
             length_center: float | None = None,
             length_right: float | None = None):
-        """Initializes a Separator with specific spacing, thickness, and segment lengths."""
-
         self.line_spacing = line_spacing or 10.0
         self.thickness = thickness or 1.0
         self.color = RGB(color or 0.0)
@@ -51,7 +49,6 @@ class Separator(Line):
             self.length_center = 1.0
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        """Draws the separator line on the given canvas."""
         canvas.saveState()
         canvas.setLineWidth(self.thickness)
         canvas.setStrokeColor(self.color)
@@ -86,35 +83,28 @@ class Separator(Line):
 
     @property
     def space_top(self) -> float:
-        """Gets the top spacing for the separator."""
         return 0.5 * self.line_spacing
 
     @property
     def space_bottom(self) -> float:
-        """Gets the bottom spacing for the separator."""
         return 0.5 * self.line_spacing
 
     @property
     def ascent(self) -> float:
-        """Gets the upward extent of the separator."""
         return 0.5 * self.thickness
 
     @property
     def descent(self) -> float:
-        """Gets the downward extent of the separator."""
         return -0.5 * self.thickness
 
     @property
     def line_height_upper(self) -> float:
-        """Gets the upper line height including spacing."""
         return 0.5 * (self.thickness + self.line_spacing)
 
     @property
     def line_height_lower(self) -> float:
-        """Gets the lower line height including spacing."""
         return 0.5 * (self.thickness + self.line_spacing)
 
     @property
     def line_height(self) -> float:
-        """Gets the total line height of the separator."""
         return self.thickness + self.line_spacing

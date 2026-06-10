@@ -1,5 +1,5 @@
-from reportlab.pdfgen.canvas import *
 from reportlab.pdfbase.pdfmetrics import *
+from reportlab.pdfgen.canvas import *
 
 from simpdf._common import _apply_constraints
 from simpdf.rgb import RGB, ColorType
@@ -71,8 +71,8 @@ class TextStyle:
         """Initializes a LineStyle, automatically resolving typographic constraints."""
         self.font = font if font is not None else self.default_font
         self.color = RGB(color) if color is not None else self.default_color
-        font_ascent_10 = getAscent(self.font, 10.0)
-        font_descent_10 = getDescent(self.font, 10.0)
+        fa10 = getAscent(self.font, 10.0)
+        fd10 = getDescent(self.font, 10.0)
 
         sym_params = [
             ("font_size", font_size),
@@ -101,34 +101,23 @@ class TextStyle:
             ("font_height", ["font_ascent", "font_descent"], lambda a, d: a - d),
             ("font_ascent", ["font_height", "font_descent"], lambda h, d: h + d),
             ("font_descent", ["font_ascent", "font_height"], lambda a, h: a - h),
-
             ("line_spacing", ["line_height", "font_height"], lambda lh, fh: lh - fh),
             ("line_height", ["line_spacing", "font_height"], lambda ls, fh: ls + fh),
             ("font_height", ["line_height", "line_spacing"], lambda lh, ls: lh - ls),
-
             ("line_height", ["font_size", "line_height_factor"], lambda f, lf: f * lf),
             ("font_size", ["line_height", "line_height_factor"], lambda lh, lf: lh / lf if lf else None),
             ("line_height_factor", ["line_height", "font_size"], lambda lh, f: lh / f if f else None),
-
-            ("font_ascent", ["font_descent"],
-             lambda d: d * font_ascent_10 / font_descent_10 if font_descent_10 else None),
-            ("font_descent", ["font_ascent"],
-             lambda a: a * font_descent_10 / font_ascent_10 if font_ascent_10 else None),
-
-            ("font_size", ["font_height"],
-             lambda h: h * 10.0 / (font_ascent_10 - font_descent_10) if (font_ascent_10 - font_descent_10) else None),
-            ("font_height", ["font_size"], lambda f: f * (font_ascent_10 - font_descent_10) / 10.0),
-
-            ("font_size", ["font_descent"], lambda d: d * 10.0 / font_descent_10 if font_descent_10 else None),
-            ("font_descent", ["font_size"], lambda f: f * font_descent_10 / 10.0),
-
-            ("font_ascent", ["font_size"], lambda f: f * font_ascent_10 / 10.0),
-            ("font_size", ["font_ascent"], lambda a: a * 10.0 / font_ascent_10 if font_ascent_10 else None),
-
+            ("font_ascent", ["font_descent"], lambda d: d * fa10 / fd10 if fd10 else None),
+            ("font_descent", ["font_ascent"], lambda a: a * fd10 / fa10 if fa10 else None),
+            ("font_size", ["font_height"], lambda h: h * 10.0 / (fa10 - fd10) if (fa10 - fd10) else None),
+            ("font_height", ["font_size"], lambda f: f * (fa10 - fd10) / 10.0),
+            ("font_size", ["font_descent"], lambda d: d * 10.0 / fd10 if fd10 else None),
+            ("font_descent", ["font_size"], lambda f: f * fd10 / 10.0),
+            ("font_ascent", ["font_size"], lambda f: f * fa10 / 10.0),
+            ("font_size", ["font_ascent"], lambda a: a * 10.0 / fa10 if fa10 else None),
             ("char_space", ["font_size", "char_space_factor"], lambda f, cf: f * cf),
             ("font_size", ["char_space", "char_space_factor"], lambda cs, cf: cs / cf if cf else None),
             ("char_space_factor", ["char_space", "font_size"], lambda cs, f: cs / f if f else None),
-
             ("word_space", ["font_size", "word_space_factor"], lambda f, wf: f * wf),
             ("font_size", ["word_space", "word_space_factor"], lambda ws, wf: ws / wf if wf else None),
             ("word_space_factor", ["word_space", "font_size"], lambda ws, f: ws / f if f else None),
