@@ -35,7 +35,7 @@ def main() -> None:
     pdf = PDF(Path("example.pdf"))
     w = pdf.line_width
 
-    title_style = TextStyle(font_bold, font_size=22.0)
+    title_style = TextStyle(font_bold, font_size=22.0, line_height_factor=1.0)
     pdf.add_line(Text(content_center="SimplePDF Feature Demo", style=title_style))
     pdf.add_line(Separator(thickness=2.0))
 

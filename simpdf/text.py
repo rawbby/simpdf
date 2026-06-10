@@ -79,19 +79,19 @@ class Text(Line):
 
     @property
     def ascent(self) -> float:
-        return self.style.font_ascent
+        return self.style.ascent
 
     @property
     def descent(self) -> float:
-        return self.style.font_descent
+        return self.style.descent
 
     @property
     def line_height_upper(self) -> float:
-        return self.ascent + self.space_top
+        return self.space_top + self.ascent
 
     @property
     def line_height_lower(self) -> float:
-        return -self.descent + self.space_bottom
+        return self.space_bottom - self.descent
 
     @property
     def line_height(self) -> float:

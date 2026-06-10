@@ -126,19 +126,14 @@ class TextStyle:
         _apply_constraints(self, sym_params, sym_defaults, relations)
 
     @property
-    def font_ascent(self):
+    def ascent(self):
         """Gets the font ascent based on the current font and size."""
         return getAscent(self.font, self.font_size)
 
     @property
-    def font_descent(self):
+    def descent(self):
         """Gets the font descent based on the current font and size."""
         return getDescent(self.font, self.font_size)
-
-    @property
-    def font_height(self):
-        """Gets the total height of the font (ascent minus descent)."""
-        return self.font_ascent - self.font_descent
 
     @property
     def line_height(self):
@@ -148,7 +143,7 @@ class TextStyle:
     @property
     def line_spacing(self):
         """Gets the extra spacing between lines."""
-        return self.line_height - self.font_height
+        return self.line_height - self.ascent + self.descent
 
     @property
     def char_space(self):
