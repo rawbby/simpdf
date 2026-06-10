@@ -9,6 +9,15 @@ __all__ = ["Separator"]
 class Separator(Line):
     """Represents a horizontal separator line."""
 
+    """Default spacing around the separator."""
+    default_line_spacing: float = 0.0
+
+    """Default thickness of the separator line."""
+    default_thickness: float = 1.0
+
+    """Default color of the separator."""
+    default_color: RGB = RGB(0)
+
     """Length of the separator aligned to the left in (0.0, 1.0]."""
     length_left: float | None
 
@@ -35,15 +44,15 @@ class Separator(Line):
             length_left: float | None = None,
             length_center: float | None = None,
             length_right: float | None = None):
-        self.line_spacing = line_spacing or 10.0
-        self.thickness = thickness or 1.0
-        self.color = RGB(color or 0.0)
+        self.line_spacing = line_spacing if line_spacing is not None else self.default_line_spacing
+        self.thickness = thickness if thickness is not None else self.default_thickness
+        self.color = RGB(color or 0.0) if color is not None else self.default_color
         self.length_left = length_left
         self.length_center = length_center
         self.length_right = length_right
 
         assert self.line_spacing >= 0.0
-        assert self.thickness >= 0.0
+        assert self.thickness > 0.0
 
         if all(it is None for it in [self.length_left, self.length_center, self.length_right]):
             self.length_center = 1.0
