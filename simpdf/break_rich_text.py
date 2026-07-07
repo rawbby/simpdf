@@ -60,7 +60,7 @@ def _rich_breaker(rich_text: RichContent, line_width: float, style: RichTextStyl
 class BreakRichText(Line):
     """Breaks a rich-text string into word-wrapped RichText lines at a fixed width."""
 
-    rich_text: str | None | RichContent
+    rich_text: RichContent
     line_width: float
     style: RichTextStyle
 

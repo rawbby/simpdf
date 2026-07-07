@@ -56,5 +56,13 @@ class Line(ABC):
         pass
 
     def unpack(self) -> list["Line"]:
-        """Returns the flat list of lines this element represents. Override to expand compound elements."""
+        """Returns the flat list of atomic lines this element represents.
+
+        The default returns ``[self]``.  Override to expand compound elements
+        (e.g. ``BulletPoints``, ``BreakText``) into their individual lines.
+        The returned list must contain at least one element.  ``PDF.save()``
+        calls this on every top-level line before layout; nested elements
+        (inside ``Container`` etc.) are not recursively expanded and must
+        handle multi-line rendering in their own ``draw()`` implementation.
+        """
         return [self]

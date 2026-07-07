@@ -56,7 +56,12 @@ class PDF:
     """List of elements to be rendered."""
     lines: list[Line]
 
-    """Optional callback invoked at the start of each page with the canvas and content area."""
+    """Optional callback invoked at the start of every page before any content is drawn.
+
+    Signature: ``on_new_page(canvas, content_x, content_y, content_width, content_height)``.
+    Called after ``showPage()`` for pages after the first, so the canvas is
+    always on the correct (new) page when the callback fires.
+    """
     on_new_page: Callable[[Canvas, float, float, float, float], None] | None
 
     def __init__(
@@ -156,7 +161,13 @@ class PDF:
             self.add_line(line)
 
     def save(self, max_pages: int = -1):
-        """Renders the collected lines onto the canvas and saves the PDF file."""
+        """Renders the collected lines onto the canvas and saves the PDF file.
+
+        Lines are first expanded via ``unpack()``, then paginated.  The
+        ``space_top`` of the first line on each page and the ``space_bottom`` of
+        the last line on each page are excluded from height accounting — they
+        overhang into the margin rather than consuming content-area space.
+        """
         lines = [l for line in self.lines for l in line.unpack()]
 
         if not lines:
