@@ -1,25 +1,24 @@
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image as PILImage
 
 from simpdf import *
-
-
-def _make_sample_image(path: Path) -> None:
-    img = Image.new("RGB", (300, 120), color=(220, 235, 250))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([4, 4, 295, 115], outline=(60, 100, 160), width=3)
-    draw.text((20, 45), "SimplePDF  —  Sample Image", fill=(30, 60, 120))
-    img.save(path)
 
 
 def main() -> None:
     unsafe_remove_reportlab_signature()
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-        img_path = Path(f.name)
-    _make_sample_image(img_path)
+        grey_path = Path(f.name)
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        white_path = Path(f.name)
+
+    PILImage.new("RGB", (1, 1), (220, 220, 220)).save(grey_path)
+    PILImage.new("RGB", (1, 1), (255, 255, 255)).save(white_path)
+
+    bg_page = Image(grey_path)
+    bg_content = Image(white_path)
 
     font = "Helvetica"
     font_italic = "Helvetica-Oblique"
@@ -34,6 +33,12 @@ def main() -> None:
 
     pdf = PDF(Path("example.pdf"))
     w = pdf.line_width
+
+    def on_new_page(canvas, x, y, cw, ch):
+        bg_page.draw(canvas, 0, 0, pdf.page_width, pdf.page_height)
+        bg_content.draw(canvas, x, y, cw, ch)
+
+    pdf.on_new_page = on_new_page
 
     title_style = TextStyle(font_bold, font_size=22.0, line_height_factor=1.0)
     pdf.add_line(Text(content_center="SimplePDF Feature Demo", style=title_style))
@@ -65,20 +70,18 @@ def main() -> None:
     pdf.add_line(Separator(thickness=2.0, color=RGB("#0044AA"), line_spacing=8.0))
 
     pdf.add_line(Separator())
-    pdf.add_line(Text("4  break_text  (word-wrap)", style=head))
+    pdf.add_line(Text("4  BreakText  (word-wrap)", style=head))
     long = (
         "SimplePDF lays out content as a vertical sequence of Line objects. "
         "Each line reports its own ascent, descent, and spacing so the engine "
         "can pack them onto pages automatically without any manual positioning. "
-        "The break_text helper splits a long string into individual Text lines "
+        "BreakText splits a long string into individual Text lines "
         "that each fit within the available column width.")
-    for line in break_text(long, w, body):
-        pdf.add_line(line)
+    pdf.add_line(BreakText(long, w, body))
 
     pdf.add_line(Separator())
-    pdf.add_line(Text("5  break_block_text  (full justification)", style=head))
-    for line in break_block_text(long, w, body):
-        pdf.add_line(line)
+    pdf.add_line(Text("5  BreakBlockText  (full justification)", style=head))
+    pdf.add_line(BreakBlockText(long, w, body))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("6  RichText  (bold / italic / links)", style=head))
@@ -93,7 +96,7 @@ def main() -> None:
     pdf.add_line(RichText("left <b>bold</b>", "center <i>italic</i>", "right <b><i>bold-italic</i></b>", style=rich))
 
     pdf.add_line(Separator())
-    pdf.add_line(Text("7  break_rich_text  (word-wrap with markup)", style=head))
+    pdf.add_line(Text("7  BreakRichText  (word-wrap with markup)", style=head))
     rich_long = (
         "SimplePDF supports <b>bold</b>, <i>italic</i>, and "
         "<b><i>bold-italic</i></b> text in the same paragraph. "
@@ -103,31 +106,54 @@ def main() -> None:
         "covers only the visible portion on each line.</a> "
         "The <i>segment metadata</i> travels with each piece after the split."
     )
-    for line in break_rich_text(rich_long, w, rich):
-        pdf.add_line(line)
+    pdf.add_line(BreakRichText(rich_long, w, rich))
 
     pdf.add_line(Separator())
-    pdf.add_line(Text("8  break_block_rich_text  (justified with markup)", style=head))
-    for line in break_rich_block_text(rich_long, w, rich):
-        pdf.add_line(line)
-
-    pdf.add_line(ContentGroup([
-        Separator(),
-        Text("9  InlineImage", style=head),
-        InlineImage(image_height=50.0, image_path_left=img_path),
-        InlineImage(image_height=50.0, image_path_center=img_path),
-        InlineImage(image_height=50.0, image_path_right=img_path)]))
+    pdf.add_line(Text("8  BreakRichBlockText  (justified with markup)", style=head))
+    pdf.add_line(BreakRichBlockText(rich_long, w, rich))
 
     pdf.add_line(Separator())
-    pdf.add_line(Text("10  ContentGroup  (keep-together)", style=head))
-    pdf.add_line(ContentGroup([
-        Text("This Text + 3 wrapped lines + Separator are kept on the same page:", style=body),
-        *break_text(
-            "ContentGroup wraps several lines and reports a single line_height to the "
+    pdf.add_line(Text("9  Container  (keep-together)", style=head))
+    pdf.add_line(Container([
+        Text("This Text + wrapped lines are kept on the same page:", style=body),
+        BreakText(
+            "Container wraps several lines and reports a single line_height to the "
             "layout engine, so either every wrapped line fits on the current page or "
             "they all flow to the next one together.",
             w, body),
     ]))
+
+    pdf.add_line(Separator())
+    pdf.add_line(Text("10  Indentation", style=head))
+    pdf.add_line(Text("No indent", style=body))
+    pdf.add_line(Indentation(Text("Indented by 20pt", style=body), indent=20.0))
+    pdf.add_line(Indentation(Text("Indented by 40pt", style=body), indent=40.0))
+    pdf.add_line(Indentation(Separator(length_left=0.5), indent=40.0))
+
+    pdf.add_line(Separator())
+    pdf.add_line(Text("11  BulletPoints", style=head))
+    pdf.add_line(BulletPoints(
+        points=[
+            (0, Text("• Top-level item.", style=body)),
+            (1, Text("– Sub-item, indented one level.", style=body)),
+            (1, Text("– Another sub-item at the same level.", style=body)),
+            (2, Text("◦ Deeply nested item, two levels down.", style=body)),
+            (0, Text("• Second top-level item.", style=body)),
+            (1, Text("– Sub-item under the second top-level item.", style=body)),
+        ],
+        styles={
+            0: BulletStyle("• "),
+            1: BulletStyle("– "),
+            2: BulletStyle("◦ "),
+        },
+    ))
+
+    pdf.add_line(Separator())
+    pdf.add_line(Text("12  Image & on_new_page", style=head))
+    pdf.add_line(BreakText(
+        "The grey margin and white content area visible on every page of this document "
+        "are drawn by two Image instances registered on pdf.on_new_page.",
+        w, body))
 
     pdf.add_line(PageFlush())
 
@@ -138,11 +164,11 @@ def main() -> None:
         "PageFlush has an effectively infinite line_height so the layout engine "
         "always opens a new page when it encounters one."
     )
-    for line in break_text(page2_text, w, body):
-        pdf.add_line(line)
+    pdf.add_line(BreakText(page2_text, w, body))
 
     pdf.save()
-    img_path.unlink()
+    grey_path.unlink()
+    white_path.unlink()
 
 
 if __name__ == "__main__":

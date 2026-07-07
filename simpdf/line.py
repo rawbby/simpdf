@@ -54,3 +54,7 @@ class Line(ABC):
     def line_height(self) -> float:
         """Gets the total line height."""
         pass
+
+    def unpack(self) -> list["Line"]:
+        """Returns the flat list of lines this element represents. Override to expand compound elements."""
+        return [self]
