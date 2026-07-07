@@ -4,7 +4,6 @@ from simpdf.break_text import *
 from simpdf.bullet_points import *
 from simpdf.container import *
 from simpdf.indentation import *
-from simpdf.inline_image import *
 from simpdf.line import *
 from simpdf.page_flush import *
 from simpdf.pdf import *

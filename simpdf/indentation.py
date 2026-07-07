@@ -6,11 +6,12 @@ __all__ = ["Indentation"]
 
 
 class Indentation(Line):
-    """Wraps a line and shifts its start position by a fixed indentation amount.
+    """Shifts the start position of an inner line by a fixed indent.
 
-    ``end`` is not adjusted, so the available width for the inner line shrinks
-    by *indent*.  It is the caller's responsibility to ensure the inner line's
-    content still fits within the reduced width.
+    ``end`` is unchanged, so the available width for the inner line shrinks
+    by ``indent``.  ``unpack()`` forwards the reduced width to the inner
+    line and wraps each result in its own ``Indentation``, so a
+    ``BreakText`` inner line word-wraps correctly at the top level.
     """
 
     indent: float
@@ -21,8 +22,7 @@ class Indentation(Line):
         self.indent = indent
 
     def unpack(self, line_width: float) -> list["Line"]:
-        self.line.unpack(line_width - self.indent)
-        return [self]
+        return [Indentation(l, self.indent) for l in self.line.unpack(line_width - self.indent)]
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         self.line.draw(canvas, baseline, start + self.indent, end)

@@ -2,7 +2,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 from simpdf.line import Line
 from simpdf.rich_text import RichText, RichTextStyle, RichContent
-from simpdf.stretch_rich_text import stretch_rich_text
+from simpdf.stretch_rich_text import StretchRichText
 
 __all__ = ["BreakRichText", "BreakRichBlockText"]
 
@@ -56,7 +56,13 @@ def _rich_breaker(rich_text: RichContent, line_width: float, style: RichTextStyl
 
 
 class BreakRichText(Line):
-    """Breaks a rich-text string into word-wrapped RichText lines at a fixed width."""
+    """Word-wraps a rich-text string into multiple ``RichText`` lines.
+
+    ``unpack(line_width)`` performs the break and returns the individual
+    ``RichText`` lines.  Height properties reflect a single line using the
+    worst-case metrics across all style variants (infinite-width assumption).
+    ``draw()`` renders the content as-is without wrapping.
+    """
 
     rich_text: RichContent
     style: RichTextStyle
@@ -64,31 +70,18 @@ class BreakRichText(Line):
     def __init__(self, rich_text: str | None | RichContent, style: RichTextStyle | None = None):
         self.rich_text = rich_text if isinstance(rich_text, RichContent) else RichContent(rich_text)
         self.style = style or RichTextStyle()
-        self._cached_lines: list[RichText] | None = None
-        self._cached_line_width: float | None = None
 
-    def _compute_lines(self, line_width: float) -> list[RichText]:
+    def _make_lines(self, line_width: float) -> list[RichText]:
         if not self.rich_text:
             return [_rich_text(self.rich_text, self.style)]
         return [_rich_text(piece, self.style)
                 for piece in _rich_breaker(self.rich_text, line_width, self.style)]
 
-    def _get_lines(self, line_width: float) -> list[RichText]:
-        if self._cached_line_width != line_width or self._cached_lines is None:
-            self._cached_lines = self._compute_lines(line_width)
-            self._cached_line_width = line_width
-        return self._cached_lines
-
-    @property
-    def _lines(self) -> list[RichText]:
-        assert self._cached_lines is not None, "line_width not yet known; call unpack() or draw() first"
-        return self._cached_lines
-
     def unpack(self, line_width: float) -> list[Line]:
-        return list(self._get_lines(line_width))
+        return self._make_lines(line_width)
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        lines = self._get_lines(end - start)
+        lines = self._make_lines(end - start)
         lines[0].draw(canvas, baseline, start, end)
         for i, line in enumerate(lines[1:], 1):
             baseline -= lines[i - 1].line_height_lower + line.line_height_upper
@@ -96,35 +89,40 @@ class BreakRichText(Line):
 
     @property
     def space_top(self) -> float:
-        return self._lines[0].space_top
+        return max(0.5 * s.line_spacing for s in self.style.styles)
 
     @property
     def space_bottom(self) -> float:
-        return self._lines[-1].space_bottom
+        return max(0.5 * s.line_spacing for s in self.style.styles)
 
     @property
     def ascent(self) -> float:
-        return self._lines[0].ascent
+        return max(s.ascent for s in self.style.styles)
 
     @property
     def descent(self) -> float:
-        return self.ascent + self.space_top + self.space_bottom - self.line_height
+        return min(s.descent for s in self.style.styles)
 
     @property
     def line_height_upper(self) -> float:
-        return self._lines[0].line_height_upper
+        return self.space_top + self.ascent
 
     @property
     def line_height_lower(self) -> float:
-        return self.line_height - self.line_height_upper
+        return self.space_bottom - self.descent
 
     @property
     def line_height(self) -> float:
-        return sum(line.line_height for line in self._lines)
+        return self.line_height_upper + self.line_height_lower
 
 
 class BreakRichBlockText(BreakRichText):
-    """Breaks a rich-text string into fully justified RichText lines at a fixed width."""
+    """Word-wraps a rich-text string into fully justified lines.
+
+    All lines except the last are wrapped in ``StretchRichText`` so they fill
+    the available width at draw time.  The last line uses conservative
+    maximums and does not stretch significantly.
+    """
 
     def __init__(
             self,
@@ -144,7 +142,7 @@ class BreakRichBlockText(BreakRichText):
         self._max_csf = max_char_space_factor
         self._max_hs = max_horizontal_scale
 
-    def _compute_lines(self, line_width: float) -> list[RichText]:
+    def _make_lines(self, line_width: float) -> list[Line]:
         if not self.rich_text:
             return [_rich_text(self.rich_text, self.style)]
 
@@ -164,28 +162,24 @@ class BreakRichBlockText(BreakRichText):
             horizontal_scale=self._min_hs,
             color=self.style.style.color)
 
-        target_width = line_width - 1e-6
         pieces = _rich_breaker(self.rich_text, line_width, dense_style)
 
-        result = []
+        result: list[Line] = []
         for piece in pieces[:-1]:
-            result.append(_rich_text(piece, stretch_rich_text(
-                piece, target_width, self.style,
-                min_word_space_factor=self._min_wsf,
-                min_char_space_factor=self._min_csf,
-                min_horizontal_scale=self._min_hs,
-                max_word_space_factor=self._max_wsf,
-                max_char_space_factor=self._max_csf,
-                max_horizontal_scale=self._max_hs)))
+            result.append(StretchRichText(piece, self.style,
+                                          min_word_space_factor=self._min_wsf,
+                                          min_char_space_factor=self._min_csf,
+                                          min_horizontal_scale=self._min_hs,
+                                          max_word_space_factor=self._max_wsf,
+                                          max_char_space_factor=self._max_csf,
+                                          max_horizontal_scale=self._max_hs))
 
         last = pieces[-1]
-        result.append(_rich_text(last, stretch_rich_text(
-            last, target_width, self.style,
-            min_word_space_factor=self._min_wsf,
-            min_char_space_factor=self._min_csf,
-            min_horizontal_scale=self._min_hs,
-            max_word_space_factor=1.0,
-            max_char_space_factor=1.0,
-            max_horizontal_scale=100.0)))
-
+        result.append(StretchRichText(last, self.style,
+                                       min_word_space_factor=self._min_wsf,
+                                       min_char_space_factor=self._min_csf,
+                                       min_horizontal_scale=self._min_hs,
+                                       max_word_space_factor=1.0,
+                                       max_char_space_factor=1.0,
+                                       max_horizontal_scale=100.0))
         return result

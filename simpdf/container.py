@@ -6,18 +6,23 @@ __all__ = ["Container"]
 
 
 class Container(Line):
-    """A group of lines laid out as a single unit that always stays on the same page."""
+    """Keeps a group of lines together on the same page.
+
+    ``unpack()`` returns ``[self]`` so the paginator treats the whole group
+    as one indivisible unit.  Height properties sum the children's natural
+    (infinite-width) dimensions.  ``draw()`` renders each child in sequence
+    using those same natural metrics for baseline advancement.
+
+    Children that produce multiple lines when word-wrapped (e.g. ``BreakText``)
+    will be drawn as a single overflowing line inside a Container; place them
+    at the top level instead if wrapping is needed.
+    """
 
     lines: list[Line]
 
     def __init__(self, lines: list[Line]):
         assert lines
         self.lines = lines
-
-    def unpack(self, line_width: float) -> list["Line"]:
-        for line in self.lines:
-            line.unpack(line_width)
-        return [self]
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         self.lines[0].draw(canvas, baseline, start, end)
