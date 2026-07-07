@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 
 from PIL import Image as PILImage
+from reportlab.lib.units import inch
 
 from simpdf import *
 
@@ -77,11 +78,11 @@ def main() -> None:
         "can pack them onto pages automatically without any manual positioning. "
         "BreakText splits a long string into individual Text lines "
         "that each fit within the available column width.")
-    pdf.add_line(BreakText(long, w, body))
+    pdf.add_line(BreakText(long, body))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("5  BreakBlockText  (full justification)", style=head))
-    pdf.add_line(BreakBlockText(long, w, body))
+    pdf.add_line(BreakBlockText(long, body))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("6  RichText  (bold / italic / links)", style=head))
@@ -106,11 +107,11 @@ def main() -> None:
         "covers only the visible portion on each line.</a> "
         "The <i>segment metadata</i> travels with each piece after the split."
     )
-    pdf.add_line(BreakRichText(rich_long, w, rich))
+    pdf.add_line(BreakRichText(rich_long, rich))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("8  BreakRichBlockText  (justified with markup)", style=head))
-    pdf.add_line(BreakRichBlockText(rich_long, w, rich))
+    pdf.add_line(BreakRichBlockText(rich_long, rich))
 
     pdf.add_line(Separator())
     pdf.add_line(Text("9  Container  (keep-together)", style=head))
@@ -120,7 +121,7 @@ def main() -> None:
             "Container wraps several lines and reports a single line_height to the "
             "layout engine, so either every wrapped line fits on the current page or "
             "they all flow to the next one together.",
-            w, body),
+            body),
     ]))
 
     pdf.add_line(Separator())
@@ -134,17 +135,17 @@ def main() -> None:
     pdf.add_line(Text("11  BulletPoints", style=head))
     pdf.add_line(BulletPoints(
         points=[
-            (0, Text("• Top-level item.", style=body)),
-            (1, Text("– Sub-item, indented one level.", style=body)),
-            (1, Text("– Another sub-item at the same level.", style=body)),
-            (2, Text("◦ Deeply nested item, two levels down.", style=body)),
-            (0, Text("• Second top-level item.", style=body)),
-            (1, Text("– Sub-item under the second top-level item.", style=body)),
+            (0, Text("Top-level item.", style=body)),
+            (1, Text("Sub-item, indented one level.", style=body)),
+            (1, Text("Another sub-item at the same level.", style=body)),
+            (2, Text("Deeply nested item, two levels down.", style=body)),
+            (0, Text("Second top-level item.", style=body)),
+            (1, Text("Sub-item under the second top-level item.", style=body)),
         ],
         styles={
-            0: BulletStyle("• "),
-            1: BulletStyle("– "),
-            2: BulletStyle("◦ "),
+            0: BulletStyle("• ", width=0.17 * inch),
+            1: BulletStyle("- ", width=0.17 * inch),
+            2: BulletStyle(lambda i: f"{i}. ", width=0.17 * inch),
         },
     ))
 
@@ -153,7 +154,7 @@ def main() -> None:
     pdf.add_line(BreakText(
         "The grey margin and white content area visible on every page of this document "
         "are drawn by two Image instances registered on pdf.on_new_page.",
-        w, body))
+        body))
 
     pdf.add_line(PageFlush())
 
@@ -164,7 +165,7 @@ def main() -> None:
         "PageFlush has an effectively infinite line_height so the layout engine "
         "always opens a new page when it encounters one."
     )
-    pdf.add_line(BreakText(page2_text, w, body))
+    pdf.add_line(BreakText(page2_text, body))
 
     pdf.save()
     grey_path.unlink()

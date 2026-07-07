@@ -168,7 +168,7 @@ class PDF:
         the last line on each page are excluded from height accounting — they
         overhang into the margin rather than consuming content-area space.
         """
-        lines = [l for line in self.lines for l in line.unpack()]
+        lines = [l for line in self.lines for l in line.unpack(self.content_width)]
 
         if not lines:
             self.canvas.save()

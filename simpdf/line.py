@@ -55,7 +55,7 @@ class Line(ABC):
         """Gets the total line height."""
         pass
 
-    def unpack(self) -> list["Line"]:
+    def unpack(self, line_width: float) -> list["Line"]:
         """Returns the flat list of atomic lines this element represents.
 
         The default returns ``[self]``.  Override to expand compound elements

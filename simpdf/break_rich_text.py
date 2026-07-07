@@ -1,5 +1,3 @@
-from functools import cached_property
-
 from reportlab.pdfgen.canvas import Canvas
 
 from simpdf.line import Line
@@ -61,26 +59,36 @@ class BreakRichText(Line):
     """Breaks a rich-text string into word-wrapped RichText lines at a fixed width."""
 
     rich_text: RichContent
-    line_width: float
     style: RichTextStyle
 
-    def __init__(self, rich_text: str | None | RichContent, line_width: float, style: RichTextStyle | None = None):
+    def __init__(self, rich_text: str | None | RichContent, style: RichTextStyle | None = None):
         self.rich_text = rich_text if isinstance(rich_text, RichContent) else RichContent(rich_text)
-        self.line_width = line_width
         self.style = style or RichTextStyle()
+        self._cached_lines: list[RichText] | None = None
+        self._cached_line_width: float | None = None
 
-    @cached_property
-    def _lines(self) -> list[RichText]:
+    def _compute_lines(self, line_width: float) -> list[RichText]:
         if not self.rich_text:
             return [_rich_text(self.rich_text, self.style)]
         return [_rich_text(piece, self.style)
-                for piece in _rich_breaker(self.rich_text, self.line_width, self.style)]
+                for piece in _rich_breaker(self.rich_text, line_width, self.style)]
 
-    def unpack(self) -> list[Line]:
-        return list(self._lines)
+    def _get_lines(self, line_width: float) -> list[RichText]:
+        if self._cached_line_width != line_width or self._cached_lines is None:
+            self._cached_lines = self._compute_lines(line_width)
+            self._cached_line_width = line_width
+        return self._cached_lines
+
+    @property
+    def _lines(self) -> list[RichText]:
+        assert self._cached_lines is not None, "line_width not yet known; call unpack() or draw() first"
+        return self._cached_lines
+
+    def unpack(self, line_width: float) -> list[Line]:
+        return list(self._get_lines(line_width))
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        lines = self._lines
+        lines = self._get_lines(end - start)
         lines[0].draw(canvas, baseline, start, end)
         for i, line in enumerate(lines[1:], 1):
             baseline -= lines[i - 1].line_height_lower + line.line_height_upper
@@ -121,7 +129,6 @@ class BreakRichBlockText(BreakRichText):
     def __init__(
             self,
             rich_text: str | None | RichContent,
-            line_width: float,
             style: RichTextStyle | None = None,
             min_word_space_factor: float = 0.95,
             min_char_space_factor: float = 0.995,
@@ -129,7 +136,7 @@ class BreakRichBlockText(BreakRichText):
             max_word_space_factor: float = 1.1,
             max_char_space_factor: float = 1.01,
             max_horizontal_scale: float = 102.0):
-        super().__init__(rich_text, line_width, style)
+        super().__init__(rich_text, style)
         self._min_wsf = min_word_space_factor
         self._min_csf = min_char_space_factor
         self._min_hs = min_horizontal_scale
@@ -137,8 +144,7 @@ class BreakRichBlockText(BreakRichText):
         self._max_csf = max_char_space_factor
         self._max_hs = max_horizontal_scale
 
-    @cached_property
-    def _lines(self) -> list[RichText]:
+    def _compute_lines(self, line_width: float) -> list[RichText]:
         if not self.rich_text:
             return [_rich_text(self.rich_text, self.style)]
 
@@ -158,8 +164,8 @@ class BreakRichBlockText(BreakRichText):
             horizontal_scale=self._min_hs,
             color=self.style.style.color)
 
-        target_width = self.line_width - 1e-6
-        pieces = _rich_breaker(self.rich_text, self.line_width, dense_style)
+        target_width = line_width - 1e-6
+        pieces = _rich_breaker(self.rich_text, line_width, dense_style)
 
         result = []
         for piece in pieces[:-1]:

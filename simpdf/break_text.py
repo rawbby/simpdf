@@ -1,5 +1,3 @@
-from functools import cached_property
-
 from reportlab.pdfgen.canvas import Canvas
 
 from simpdf.line import Line
@@ -38,23 +36,33 @@ class BreakText(Line):
     """Breaks a text string into word-wrapped lines at a fixed width."""
 
     text: str | None
-    line_width: float
     style: TextStyle
 
-    def __init__(self, text: str | None, line_width: float, style: TextStyle | None = None):
+    def __init__(self, text: str | None, style: TextStyle | None = None):
         self.text = text
-        self.line_width = line_width
         self.style = style or TextStyle()
+        self._cached_lines: list[Text] | None = None
+        self._cached_line_width: float | None = None
 
-    @cached_property
+    def _compute_lines(self, line_width: float) -> list[Text]:
+        return [Text(s, style=self.style) for s in _text_breaker(self.text, line_width, self.style)]
+
+    def _get_lines(self, line_width: float) -> list[Text]:
+        if self._cached_line_width != line_width or self._cached_lines is None:
+            self._cached_lines = self._compute_lines(line_width)
+            self._cached_line_width = line_width
+        return self._cached_lines
+
+    @property
     def _lines(self) -> list[Text]:
-        return [Text(s, style=self.style) for s in _text_breaker(self.text, self.line_width, self.style)]
+        assert self._cached_lines is not None, "line_width not yet known; call unpack() or draw() first"
+        return self._cached_lines
 
-    def unpack(self) -> list[Line]:
-        return list(self._lines)
+    def unpack(self, line_width: float) -> list[Line]:
+        return list(self._get_lines(line_width))
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        lines = self._lines
+        lines = self._get_lines(end - start)
         lines[0].draw(canvas, baseline, start, end)
         for i, line in enumerate(lines[1:], 1):
             baseline -= lines[i - 1].line_height_lower + line.line_height_upper
@@ -95,7 +103,6 @@ class BreakBlockText(BreakText):
     def __init__(
             self,
             text: str | None,
-            line_width: float,
             style: TextStyle | None = None,
             min_word_space_factor: float = 0.95,
             min_char_space_factor: float = 0.995,
@@ -103,7 +110,7 @@ class BreakBlockText(BreakText):
             max_word_space_factor: float = 1.1,
             max_char_space_factor: float = 1.01,
             max_horizontal_scale: float = 102.0):
-        super().__init__(text, line_width, style)
+        super().__init__(text, style)
         self._min_wsf = min_word_space_factor
         self._min_csf = min_char_space_factor
         self._min_hs = min_horizontal_scale
@@ -111,8 +118,7 @@ class BreakBlockText(BreakText):
         self._max_csf = max_char_space_factor
         self._max_hs = max_horizontal_scale
 
-    @cached_property
-    def _lines(self) -> list[Text]:
+    def _compute_lines(self, line_width: float) -> list[Text]:
         if not self.text:
             return [Text("", style=self.style)]
 
@@ -128,8 +134,8 @@ class BreakBlockText(BreakText):
             word_space=self.style.font_size * (self._min_wsf - 1.0),
             horizontal_scale=self._min_hs)
 
-        target_width = self.line_width - 1e-6
-        line_strs = _text_breaker(self.text, self.line_width, dense_style)
+        target_width = line_width - 1e-6
+        line_strs = _text_breaker(self.text, line_width, dense_style)
 
         result = []
         for s in line_strs[:-1]:

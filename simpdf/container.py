@@ -14,6 +14,11 @@ class Container(Line):
         assert lines
         self.lines = lines
 
+    def unpack(self, line_width: float) -> list["Line"]:
+        for line in self.lines:
+            line.unpack(line_width)
+        return [self]
+
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         self.lines[0].draw(canvas, baseline, start, end)
         for i, line in enumerate(self.lines[1:], 1):
