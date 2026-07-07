@@ -9,10 +9,8 @@ description = "A simple, pixel-perfect PDF layout logic package"
 readme = "README.md"
 keywords = ["pdf", "python", "reportlab", "layout", "document", "generation", "pixel-perfect", "pdf-generation", "typesetting", "publishing"]
 requires-python = ">=3.10"
-license = {text = "MIT License"}
-dependencies = [
-    "reportlab"
-]
+license = { text = "MIT License" }
+dependencies = ["reportlab"]
 
 [tool.setuptools.packages.find]
 where = ["."]
