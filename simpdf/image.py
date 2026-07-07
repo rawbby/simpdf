@@ -105,7 +105,7 @@ class InlineImage(Line):
                 return str(path)
 
             min_height = (self.image_height / 72.0) * self.dpi
-            with Image.open(path) as img:
+            with PillowImage.open(path) as img:
                 if img.height <= min_height:
                     return str(path)
 
