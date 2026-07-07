@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 
 from reportlab.lib.pagesizes import *
 from reportlab.lib.units import *
@@ -54,6 +55,9 @@ class PDF:
 
     """List of elements to be rendered."""
     lines: list[Line]
+
+    """Optional callback invoked at the start of each page with the canvas and content area."""
+    on_new_page: Callable[[Canvas, float, float, float, float], None] | None
 
     def __init__(
             self,
@@ -115,6 +119,7 @@ class PDF:
             invariant=True)
 
         self.lines = []
+        self.on_new_page = None
 
     @property
     def content_x(self) -> float:
@@ -145,17 +150,24 @@ class PDF:
         """Appends a line or separator to the PDF document."""
         self.lines.append(line)
 
+    def add_lines(self, lines: list[Line]):
+        """Appends multiple lines or separators to the PDF document."""
+        for line in lines:
+            self.add_line(line)
+
     def save(self, max_pages: int = -1):
         """Renders the collected lines onto the canvas and saves the PDF file."""
-        if not self.lines:
+        lines = [l for line in self.lines for l in line.unpack()]
+
+        if not lines:
             self.canvas.save()
             return
 
         pages = []
-        page = [self.lines[0]]
-        page_height = self.lines[0].line_height - self.lines[0].space_top
+        page = [lines[0]]
+        page_height = lines[0].line_height - lines[0].space_top
 
-        for line in self.lines[1:]:
+        for line in lines[1:]:
             page_height += line.line_height - line.space_bottom
 
             # trivial case: line fits page
@@ -178,6 +190,9 @@ class PDF:
         for i, page in enumerate(pages):
             if i > 0:
                 self.canvas.showPage()
+
+            if self.on_new_page is not None:
+                self.on_new_page(self.canvas, self.content_x, self.content_y, self.content_width, self.content_height)
 
             baseline = self.page_height - self.margin_top - page[0].ascent
             beg = self.content_x

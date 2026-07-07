@@ -2,13 +2,12 @@ from reportlab.pdfgen.canvas import *
 
 from simpdf.line import Line
 
-__all__ = ["ContentGroup"]
+__all__ = ["Container"]
 
 
-class ContentGroup(Line):
-    """A group of lines that is laid out as a single line and therefore always stays on the same page."""
+class Container(Line):
+    """A group of lines laid out as a single unit that always stays on the same page."""
 
-    """The wrapped lines, drawn one after another."""
     lines: list[Line]
 
     def __init__(self, lines: list[Line]):

@@ -1,7 +1,12 @@
+from functools import cached_property
+
+from reportlab.pdfgen.canvas import Canvas
+
+from simpdf.line import Line
 from simpdf.rich_text import RichText, RichTextStyle, RichContent
 from simpdf.stretch_rich_text import stretch_rich_text
 
-__all__ = ["break_rich_text", "break_rich_block_text"]
+__all__ = ["BreakRichText", "BreakRichBlockText"]
 
 
 def _rich_text(rich_text: RichContent, style: RichTextStyle) -> RichText:
@@ -52,75 +57,129 @@ def _rich_breaker(rich_text: RichContent, line_width: float, style: RichTextStyl
     return [rich_text.slice(a, b) for a, b in lines]
 
 
-def break_rich_text(rich_text: str | None | RichContent, line_width: float, style: RichTextStyle) -> list[RichText]:
-    """Break a rich-text string into RichText lines that fit within *line_width*."""
-    if not isinstance(rich_text, RichContent):
-        rich_text = RichContent(rich_text)
-    if not rich_text:
-        return [_rich_text(rich_text, style)]
-    return [_rich_text(piece, style) for piece in _rich_breaker(rich_text, line_width, style)]
+class BreakRichText(Line):
+    """Breaks a rich-text string into word-wrapped RichText lines at a fixed width."""
+
+    rich_text: str | None | RichContent
+    line_width: float
+    style: RichTextStyle
+
+    def __init__(self, rich_text: str | None | RichContent, line_width: float, style: RichTextStyle | None = None):
+        self.rich_text = rich_text if isinstance(rich_text, RichContent) else RichContent(rich_text)
+        self.line_width = line_width
+        self.style = style or RichTextStyle()
+
+    @cached_property
+    def _lines(self) -> list[RichText]:
+        if not self.rich_text:
+            return [_rich_text(self.rich_text, self.style)]
+        return [_rich_text(piece, self.style)
+                for piece in _rich_breaker(self.rich_text, self.line_width, self.style)]
+
+    def unpack(self) -> list[Line]:
+        return list(self._lines)
+
+    def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
+        lines = self._lines
+        lines[0].draw(canvas, baseline, start, end)
+        for i, line in enumerate(lines[1:], 1):
+            baseline -= lines[i - 1].line_height_lower + line.line_height_upper
+            line.draw(canvas, baseline, start, end)
+
+    @property
+    def space_top(self) -> float:
+        return self._lines[0].space_top
+
+    @property
+    def space_bottom(self) -> float:
+        return self._lines[-1].space_bottom
+
+    @property
+    def ascent(self) -> float:
+        return self._lines[0].ascent
+
+    @property
+    def descent(self) -> float:
+        return self.ascent + self.space_top + self.space_bottom - self.line_height
+
+    @property
+    def line_height_upper(self) -> float:
+        return self._lines[0].line_height_upper
+
+    @property
+    def line_height_lower(self) -> float:
+        return self.line_height - self.line_height_upper
+
+    @property
+    def line_height(self) -> float:
+        return sum(line.line_height for line in self._lines)
 
 
-def break_rich_block_text(
-        rich_text: str | None | RichContent,
-        line_width: float,
-        style: RichTextStyle,
-        min_word_space_factor: float = 0.95,
-        min_char_space_factor: float = 0.995,
-        min_horizontal_scale: float = 99.0,
-        max_word_space_factor: float = 1.1,
-        max_char_space_factor: float = 1.01,
-        max_horizontal_scale: float = 102.0) -> list[RichText]:
-    """Break a rich-text string into fully justified RichText lines.
+class BreakRichBlockText(BreakRichText):
+    """Breaks a rich-text string into fully justified RichText lines at a fixed width."""
 
-    All lines except the last are stretched to *line_width* by adjusting spacing
-    and horizontal scale within the given bounds.  The last line is only
-    compressed (never expanded beyond neutral).
-    """
-    if not isinstance(rich_text, RichContent):
-        rich_text = RichContent(rich_text)
+    def __init__(
+            self,
+            rich_text: str | None | RichContent,
+            line_width: float,
+            style: RichTextStyle | None = None,
+            min_word_space_factor: float = 0.95,
+            min_char_space_factor: float = 0.995,
+            min_horizontal_scale: float = 99.0,
+            max_word_space_factor: float = 1.1,
+            max_char_space_factor: float = 1.01,
+            max_horizontal_scale: float = 102.0):
+        super().__init__(rich_text, line_width, style)
+        self._min_wsf = min_word_space_factor
+        self._min_csf = min_char_space_factor
+        self._min_hs = min_horizontal_scale
+        self._max_wsf = max_word_space_factor
+        self._max_csf = max_char_space_factor
+        self._max_hs = max_horizontal_scale
 
-    if not rich_text:
-        return [_rich_text(rich_text, style)]
+    @cached_property
+    def _lines(self) -> list[RichText]:
+        if not self.rich_text:
+            return [_rich_text(self.rich_text, self.style)]
 
-    assert min_char_space_factor <= max_char_space_factor
-    assert min_word_space_factor <= max_word_space_factor
-    assert min_horizontal_scale <= max_horizontal_scale
+        assert self._min_csf <= self._max_csf
+        assert self._min_wsf <= self._max_wsf
+        assert self._min_hs <= self._max_hs
 
-    dense_style = RichTextStyle(
-        font=style.style.font,
-        font_italic=style.style_italic.font if style.style_italic is not style.style else None,
-        font_bold=style.style_bold.font if style.style_bold is not style.style else None,
-        font_bold_italic=style.style_bold_italic.font if style.style_bold_italic is not style.style else None,
-        font_size=style.style.font_size,
-        line_height_factor=style.style.line_height_factor,
-        char_space=style.style.font_size * (min_char_space_factor - 1.0),
-        word_space=style.style.font_size * (min_word_space_factor - 1.0),
-        horizontal_scale=min_horizontal_scale,
-        color=style.style.color)
+        dense_style = RichTextStyle(
+            font=self.style.style.font,
+            font_italic=self.style.style_italic.font if self.style.style_italic is not self.style.style else None,
+            font_bold=self.style.style_bold.font if self.style.style_bold is not self.style.style else None,
+            font_bold_italic=self.style.style_bold_italic.font if self.style.style_bold_italic is not self.style.style else None,
+            font_size=self.style.style.font_size,
+            line_height_factor=self.style.style.line_height_factor,
+            char_space=self.style.style.font_size * (self._min_csf - 1.0),
+            word_space=self.style.style.font_size * (self._min_wsf - 1.0),
+            horizontal_scale=self._min_hs,
+            color=self.style.style.color)
 
-    target_width = line_width - 1e-6
-    pieces = _rich_breaker(rich_text, line_width, dense_style)
+        target_width = self.line_width - 1e-6
+        pieces = _rich_breaker(self.rich_text, self.line_width, dense_style)
 
-    result = []
-    for piece in pieces[:-1]:
-        result.append(_rich_text(piece, stretch_rich_text(
-            piece, target_width, style,
-            min_word_space_factor=min_word_space_factor,
-            min_char_space_factor=min_char_space_factor,
-            min_horizontal_scale=min_horizontal_scale,
-            max_word_space_factor=max_word_space_factor,
-            max_char_space_factor=max_char_space_factor,
-            max_horizontal_scale=max_horizontal_scale)))
+        result = []
+        for piece in pieces[:-1]:
+            result.append(_rich_text(piece, stretch_rich_text(
+                piece, target_width, self.style,
+                min_word_space_factor=self._min_wsf,
+                min_char_space_factor=self._min_csf,
+                min_horizontal_scale=self._min_hs,
+                max_word_space_factor=self._max_wsf,
+                max_char_space_factor=self._max_csf,
+                max_horizontal_scale=self._max_hs)))
 
-    last = pieces[-1]
-    result.append(_rich_text(last, stretch_rich_text(
-        last, target_width, style,
-        min_word_space_factor=min_word_space_factor,
-        min_char_space_factor=min_char_space_factor,
-        min_horizontal_scale=min_horizontal_scale,
-        max_word_space_factor=1.0,
-        max_char_space_factor=1.0,
-        max_horizontal_scale=100.0)))
+        last = pieces[-1]
+        result.append(_rich_text(last, stretch_rich_text(
+            last, target_width, self.style,
+            min_word_space_factor=self._min_wsf,
+            min_char_space_factor=self._min_csf,
+            min_horizontal_scale=self._min_hs,
+            max_word_space_factor=1.0,
+            max_char_space_factor=1.0,
+            max_horizontal_scale=100.0)))
 
-    return result
+        return result
