@@ -19,7 +19,7 @@ def test_image_properties():
     assert img.line_height_lower == 10.0
     assert img.line_height == 120.0
 
-from simpdf.inline_image import _scale_image
+from simpdf.image import _scale_image
 from PIL import Image
 
 def test_scale_image_box_combines_n_pixels():

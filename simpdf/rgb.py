@@ -12,7 +12,10 @@ class RGB(Color):
     Ints are interpreted as 0-255, floats as 0.0-1.0.
     """
 
-    def __init__(self, value: ColorType):
+    def __init__(self, value: ColorType | None = None):
+        if value is None:
+            value = 0.0
+
         def norm(v: int | float) -> float:
             if isinstance(v, int):
                 v = float(v) / 255.0

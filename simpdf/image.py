@@ -98,7 +98,7 @@ class InlineImage(Line):
         kwargs = {"y": baseline, "height": self.image_height, "preserveAspectRatio": True, "anchorAtXY": True}
         line_width = end - start
 
-        def get_image(path: Path | None) -> str | Image.Image | None:
+        def get_image(path: Path | None) -> str | PillowImage.Image | None:
             if path is None:
                 return None
             if not self.dpi:
