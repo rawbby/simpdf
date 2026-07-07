@@ -1,3 +1,4 @@
+from functools import cached_property
 from pathlib import Path
 
 from PIL import Image as _PILImage
@@ -22,6 +23,7 @@ class Image:
         self.image_height = image_height if image_height is not None else self.default_image_height
         self.dpi = dpi
 
+    @cached_property
     def _resolved_image(self) -> str | _PILImage.Image:
         if not self.dpi:
             return str(self.image_path)
@@ -41,7 +43,7 @@ class Image:
         When both width and height are given the image is stretched to fill the rectangle exactly.
         When only height is given the aspect ratio is preserved.
         """
-        image = self._resolved_image()
+        image = self._resolved_image
         h = height if height is not None else self.image_height
         preserve = width is None
         kwargs: dict = {"height": h, "preserveAspectRatio": preserve, "anchor": "sw", "anchorAtXY": True}

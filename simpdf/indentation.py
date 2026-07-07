@@ -6,7 +6,12 @@ __all__ = ["Indentation"]
 
 
 class Indentation(Line):
-    """Wraps a line and shifts its start position by a fixed indentation amount."""
+    """Wraps a line and shifts its start position by a fixed indentation amount.
+
+    ``end`` is not adjusted, so the available width for the inner line shrinks
+    by *indent*.  It is the caller's responsibility to ensure the inner line's
+    content still fits within the reduced width.
+    """
 
     indent: float
     line: Line

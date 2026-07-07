@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Callable
 
 from reportlab.pdfgen.canvas import Canvas
@@ -10,7 +11,13 @@ __all__ = ["BulletStyle", "BulletPoints"]
 
 
 class BulletStyle:
-    """Defines the glyph column width and margins for one bullet level."""
+    """Defines the glyph column width and margins for one bullet level.
+
+    The *style* attribute is used exclusively for computing glyph text widths in
+    ``max_width``; it does not affect how the caller-supplied ``Line`` objects are
+    rendered.  Set it to match the style of the lines you pass to ``BulletPoints``
+    so that sub-level indentation aligns with the rendered glyph.
+    """
 
     default_style: TextStyle = TextStyle()
 
@@ -39,7 +46,15 @@ class BulletStyle:
         return self.glyph if isinstance(self.glyph, str) else self.glyph(index)
 
     def max_width(self, max_index: int) -> float:
-        """Returns the glyph column width, validating per-glyph constraints when width is fixed."""
+        """Returns the glyph column width for indices 0..max_index.
+
+        When *width* is set it is returned directly (and each glyph is validated
+        against any margin constraints).  Otherwise the width is computed from
+        the rendered glyph text.  Returns 0.0 when *max_index* < 0 (no items at
+        this level).
+        """
+        if max_index < 0:
+            return 0.0
         if self.width is not None:
             for i in range(max_index + 1):
                 gw = self.style.text_width(self._glyph_str(i))
@@ -56,7 +71,14 @@ class BulletStyle:
 
 
 class BulletPoints(Line):
-    """A flat list of (level, Line) bullet points that unpacks into indented lines."""
+    """A flat list of (level, Line) bullet points that unpacks into indented lines.
+
+    Each entry is a ``(level, line)`` pair where *level* is a zero-based nesting
+    depth and *line* is any ``Line`` instance (``Text``, ``RichText``, etc.).
+    The glyph and spacing of the bullet are already embedded in the caller-supplied
+    *line*; ``BulletStyle`` is used only to compute the indent width applied to
+    deeper levels.
+    """
 
     default_style: BulletStyle = BulletStyle()
 
@@ -67,18 +89,18 @@ class BulletPoints(Line):
             self,
             points: list[tuple[int, Line]],
             styles: dict[int, BulletStyle] | None = None):
+        assert points, "BulletPoints requires at least one point"
         self.points = points
         self.styles = styles or {}
 
     def _style(self, level: int) -> BulletStyle:
         return self.styles.get(level, self.default_style)
 
-    def unpack(self) -> list[Line]:
-        """Returns one indented line per bullet point."""
+    @cached_property
+    def _unpacked(self) -> list[Line]:
         result = []
         for index, (level, line) in enumerate(self.points):
             style = self._style(level)
-            level_count = sum(1 for l, _ in self.points if l == level)
 
             indent = 0.0
             for l in range(level):
@@ -89,10 +111,14 @@ class BulletPoints(Line):
             result.append(Indentation(line, indent + (style.left_margin or 0.0)))
         return result
 
+    def unpack(self) -> list[Line]:
+        """Returns one indented Line per bullet point."""
+        return list(self._unpacked)
+
     # --- Line interface, delegating to the unpacked lines ---
 
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
-        lines = self.unpack()
+        lines = self._unpacked
         lines[0].draw(canvas, baseline, start, end)
         for i, line in enumerate(lines[1:], 1):
             baseline -= lines[i - 1].line_height_lower + line.line_height_upper
@@ -100,15 +126,15 @@ class BulletPoints(Line):
 
     @property
     def space_top(self) -> float:
-        return self.unpack()[0].space_top
+        return self._unpacked[0].space_top
 
     @property
     def space_bottom(self) -> float:
-        return self.unpack()[-1].space_bottom
+        return self._unpacked[-1].space_bottom
 
     @property
     def ascent(self) -> float:
-        return self.unpack()[0].ascent
+        return self._unpacked[0].ascent
 
     @property
     def descent(self) -> float:
@@ -116,7 +142,7 @@ class BulletPoints(Line):
 
     @property
     def line_height_upper(self) -> float:
-        return self.unpack()[0].line_height_upper
+        return self._unpacked[0].line_height_upper
 
     @property
     def line_height_lower(self) -> float:
@@ -124,4 +150,4 @@ class BulletPoints(Line):
 
     @property
     def line_height(self) -> float:
-        return sum(line.line_height for line in self.unpack())
+        return sum(line.line_height for line in self._unpacked)

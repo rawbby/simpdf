@@ -11,8 +11,6 @@ __all__ = ["BreakText", "BreakBlockText"]
 
 
 def _text_breaker(text: str | None, line_width: float, style: TextStyle) -> list[str]:
-    if text is None:
-        return []
     if not text:
         return [""]
 
