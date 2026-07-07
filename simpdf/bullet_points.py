@@ -10,13 +10,55 @@ from simpdf.text_style import TextStyle
 __all__ = ["BulletStyle", "BulletPoints"]
 
 
-class BulletStyle:
-    """Defines the glyph column width and margins for one bullet level.
+class _GlyphLine(Line):
+    """Draws a glyph at a fixed x offset, then delegates to an indented inner line."""
 
-    The *style* attribute is used exclusively for computing glyph text widths in
-    ``max_width``; it does not affect how the caller-supplied ``Line`` objects are
-    rendered.  Set it to match the style of the lines you pass to ``BulletPoints``
-    so that sub-level indentation aligns with the rendered glyph.
+    def __init__(self, line: Line, content_indent: float, glyph_x: float, glyph: str, style: TextStyle):
+        self._inner = Indentation(line, content_indent)
+        self._glyph_x = glyph_x
+        self._glyph = glyph
+        self._style = style
+
+    def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
+        self._style.draw_text(canvas, start + self._glyph_x, baseline, self._glyph)
+        self._inner.draw(canvas, baseline, start, end)
+
+    @property
+    def space_top(self) -> float:
+        return self._inner.space_top
+
+    @property
+    def space_bottom(self) -> float:
+        return self._inner.space_bottom
+
+    @property
+    def ascent(self) -> float:
+        return self._inner.ascent
+
+    @property
+    def descent(self) -> float:
+        return self._inner.descent
+
+    @property
+    def line_height_upper(self) -> float:
+        return self._inner.line_height_upper
+
+    @property
+    def line_height_lower(self) -> float:
+        return self._inner.line_height_lower
+
+    @property
+    def line_height(self) -> float:
+        return self._inner.line_height
+
+
+class BulletStyle:
+    """Defines the glyph, its text style, column width, and margins for one bullet level.
+
+    The *style* attribute controls both the rendered appearance of the glyph and the
+    width computation used to size the glyph column.  Set it to match the desired
+    bullet appearance; it does not affect how the caller-supplied ``Line`` objects
+    are rendered.
     """
 
     default_style: TextStyle = TextStyle()
@@ -75,9 +117,9 @@ class BulletPoints(Line):
 
     Each entry is a ``(level, line)`` pair where *level* is a zero-based nesting
     depth and *line* is any ``Line`` instance (``Text``, ``RichText``, etc.).
-    The glyph and spacing of the bullet are already embedded in the caller-supplied
-    *line*; ``BulletStyle`` is used only to compute the indent width applied to
-    deeper levels.
+    The glyph defined in ``BulletStyle`` is drawn automatically at the left edge of
+    each bullet's indent column; callers should *not* embed the glyph in the supplied
+    line.  Pass a ``styles`` mapping to customise glyph, margins, or width per level.
     """
 
     default_style: BulletStyle = BulletStyle()
@@ -99,7 +141,8 @@ class BulletPoints(Line):
     @cached_property
     def _unpacked(self) -> list[Line]:
         result = []
-        for index, (level, line) in enumerate(self.points):
+        level_indices: dict[int, int] = {}
+        for level, line in self.points:
             style = self._style(level)
 
             indent = 0.0
@@ -108,7 +151,15 @@ class BulletPoints(Line):
                 pl = sum(1 for li, _ in self.points if li == l)
                 indent += (ps.left_margin or 0.0) + ps.max_width(pl - 1) + (ps.right_margin or 0.0)
 
-            result.append(Indentation(line, indent + (style.left_margin or 0.0)))
+            level_index = level_indices.get(level, 0)
+            level_indices[level] = level_index + 1
+
+            pl = sum(1 for li, _ in self.points if li == level)
+            glyph_x = indent + (style.left_margin or 0.0)
+            content_indent = glyph_x + style.max_width(pl - 1) + (style.right_margin or 0.0)
+            glyph_str = style._glyph_str(level_index)
+
+            result.append(_GlyphLine(line, content_indent, glyph_x, glyph_str, style.style))
         return result
 
     def unpack(self) -> list[Line]:
