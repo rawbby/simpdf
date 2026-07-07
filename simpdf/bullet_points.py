@@ -88,28 +88,24 @@ class BulletStyle:
         return self.glyph if isinstance(self.glyph, str) else self.glyph(index)
 
     def max_width(self, max_index: int) -> float:
-        """Returns the glyph column width for indices 0..max_index.
+        """Returns the glyph column width for indices 1..max_index.
 
         When *width* is set it is returned directly (and each glyph is validated
         against any margin constraints).  Otherwise the width is computed from
-        the rendered glyph text.  Returns 0.0 when *max_index* < 0 (no items at
+        the rendered glyph text.  Returns 0.0 when *max_index* < 1 (no items at
         this level).
         """
-        if max_index < 0:
+        if max_index < 1:
             return 0.0
         if self.width is not None:
-            for i in range(max_index + 1):
+            for i in range(1, max_index + 1):
                 gw = self.style.text_width(self._glyph_str(i))
-                if self.left_margin is not None:
-                    assert gw + self.left_margin <= self.width, \
-                        f"glyph at index {i} with left_margin exceeds width"
-                if self.right_margin is not None:
-                    assert gw + self.right_margin <= self.width, \
-                        f"glyph at index {i} with right_margin exceeds width"
+                assert gw <= self.width, \
+                    f"glyph '{self._glyph_str(i)}' at index {i} (width {gw:.3f}) exceeds column width {self.width:.3f}"
             return self.width
         if isinstance(self.glyph, str):
             return self.style.text_width(self.glyph)
-        return max(self.style.text_width(self._glyph_str(i)) for i in range(max_index + 1))
+        return max(self.style.text_width(self._glyph_str(i)) for i in range(1, max_index + 1))
 
 
 class BulletPoints(Line):
@@ -149,22 +145,26 @@ class BulletPoints(Line):
             for l in range(level):
                 ps = self._style(l)
                 pl = sum(1 for li, _ in self.points if li == l)
-                indent += (ps.left_margin or 0.0) + ps.max_width(pl - 1) + (ps.right_margin or 0.0)
+                indent += (ps.left_margin or 0.0) + ps.max_width(pl) + (ps.right_margin or 0.0)
 
-            level_index = level_indices.get(level, 0)
+            level_index = level_indices.get(level, 1)
             level_indices[level] = level_index + 1
 
             pl = sum(1 for li, _ in self.points if li == level)
             glyph_x = indent + (style.left_margin or 0.0)
-            content_indent = glyph_x + style.max_width(pl - 1) + (style.right_margin or 0.0)
+            content_indent = glyph_x + style.max_width(pl) + (style.right_margin or 0.0)
             glyph_str = style._glyph_str(level_index)
 
             result.append(_GlyphLine(line, content_indent, glyph_x, glyph_str, style.style))
         return result
 
-    def unpack(self) -> list[Line]:
+    def unpack(self, line_width: float) -> list[Line]:
         """Returns one indented Line per bullet point."""
-        return list(self._unpacked)
+        result = list(self._unpacked)
+        for glyph_line in result:
+            inner_indent = glyph_line._inner.indent
+            glyph_line._inner.line.unpack(line_width - inner_indent)
+        return result
 
     # --- Line interface, delegating to the unpacked lines ---
 

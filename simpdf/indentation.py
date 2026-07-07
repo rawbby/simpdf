@@ -20,6 +20,10 @@ class Indentation(Line):
         self.line = line
         self.indent = indent
 
+    def unpack(self, line_width: float) -> list["Line"]:
+        self.line.unpack(line_width - self.indent)
+        return [self]
+
     def draw(self, canvas: Canvas, baseline: float, start: float, end: float):
         self.line.draw(canvas, baseline, start + self.indent, end)
 
